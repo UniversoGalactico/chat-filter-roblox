@@ -1,6 +1,3 @@
-# chat-filter-roblox
-A free, multilingual chat filter with progressive strikes, Levenshtein detection, and anti‑grooming tools. Built after being scammed for 79 Robux and ignored by Roblox.
-
 # 🛡️ Chat Filter for Roblox
 
 A free, multilingual chat moderation system with progressive strikes, Levenshtein evasion detection, and anti‑grooming tools. Built for developers who want real control over their game's chat.
