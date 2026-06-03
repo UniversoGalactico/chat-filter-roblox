@@ -9,7 +9,7 @@ A free, multilingual chat moderation system with progressive strikes, Levenshtei
 
 In January 2026, I was scammed in a Roblox game. I lost 79 Robux. I submitted clear evidence to Roblox support and was ignored.  
 I could have held a grudge. Instead, I built a chat filter that catches what Roblox misses — and gave it away for free.  
-I'm 15 years old. This is what I know how to do.
+I'm 16 years old. This is what I know how to do.
 
 ## 🚀 Features
 
