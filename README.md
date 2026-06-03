@@ -22,21 +22,31 @@ I'm 16 years old. This is what I know how to do.
 
 ## 📦 How to install
 
-1. Download all `.lua` files from this repository.
-2. In Roblox Studio, place them inside `ServerScriptService`.
-3. That's it. The system works automatically — no configuration needed.
-4. (Optional) Customize words and sanctions by editing `ChatConfig.lua` and `ProfanityData.lua`.
+### Server
+1. Download all `.lua` files from the `server/` folder.
+2. In Roblox Studio, place them inside `ServerScriptService/ServerModules`.
+3. Place `ChatServer.lua` directly in `ServerScriptService`.
+
+### Client
+1. Download `ChatClient.lua` from the `client/` folder and place it in `ReplicatedStorage/ClientModules`.
+2. Place `IniciarChat.lua` inside `StarterGui/ScreenGui`.
+3. Create a `RemoteEvent` named `ChatMessage` inside `ReplicatedStorage`.
+
+That's it. The system works automatically — no configuration needed.  
+(Optional) Customize words and sanctions by editing `ChatConfig.lua` and `ProfanityData.lua`.
 
 ## 📁 Files
 
-| File | Type | Purpose |
-|------|------|---------|
-| `ChatConfig.lua` | ModuleScript | All configurable constants |
-| `ProfanityData.lua` | ModuleScript | Banned words, phrases, emojis, white‑list |
-| `ChatFilter.lua` | ModuleScript | Core filtering logic (normalization, Levenshtein) |
-| `ModerationManager.lua` | ModuleScript | Strikes, silence, kicks, reports, audit log |
-| `ChatConnector.lua` | ModuleScript | Facade that connects everything |
-| `ChatServer.lua` | Script | Listens to `Player.Chatted` and routes messages |
+| File | Type | Location | Purpose |
+|------|------|----------|---------|
+| `ChatConfig.lua` | ModuleScript | ServerModules | All configurable constants |
+| `ProfanityData.lua` | ModuleScript | ServerModules | Banned words, phrases, emojis, white‑list |
+| `ChatFilter.lua` | ModuleScript | ServerModules | Core filtering logic (normalization, Levenshtein) |
+| `ModerationManager.lua` | ModuleScript | ServerModules | Strikes, silence, kicks, reports, audit log |
+| `ChatConnector.lua` | ModuleScript | ServerModules | Facade that connects everything |
+| `ChatServer.lua` | Script | ServerScriptService | Receives messages, validates, broadcasts |
+| `ChatClient.lua` | ModuleScript | ClientModules | Chat GUI, sends messages to server |
+| `IniciarChat.lua` | LocalScript | StarterGui | Starts the ChatClient module |
 
 ## 📝 License
 
