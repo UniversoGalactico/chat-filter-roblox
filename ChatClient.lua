@@ -1,14 +1,27 @@
 -- ChatClient.lua (ModuleScript en ReplicatedStorage.ClientModules)
--- Responsabilidad única: Construir la interfaz de chat y manejar la comunicación con el servidor.
--- El chat de Roblox queda desactivado.
+-- Versión con DEBUG exhaustivo
 
 local ChatClient = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
--- Dependencias
-local chatEvent = ReplicatedStorage:WaitForChild("ChatMessage", 5)
+-- -------------------- DEPURACIÓN INICIAL --------------------
+print("[ChatClient] === INICIANDO MÓDULO ===")
+print("[ChatClient] Buscando RemoteEvent 'ChatMessage' en ReplicatedStorage...")
+
+local chatEvent = nil
+local success, err = pcall(function()
+	chatEvent = ReplicatedStorage:WaitForChild("ChatMessage", 10) -- timeout 10s
+end)
+
+if not success or not chatEvent then
+	warn("[ChatClient] ❌ ERROR: No se encontró 'ChatMessage'. Detalles:", err)
+	return ChatClient  -- no se puede continuar
+end
+
+print("[ChatClient] ✅ RemoteEvent 'ChatMessage' encontrado:", chatEvent:GetFullName())
 
 -- Estado interno
 local player = nil
@@ -17,14 +30,18 @@ local scrollFrame = nil
 local uiListLayout = nil
 local textBox = nil
 
--- Mostrar un mensaje en el área de chat
+-- -------------------- MOSTRAR MENSAJE --------------------
 local function mostrarMensaje(nombre, texto, esSistema)
 	local label = Instance.new("TextLabel")
-	label.Text = ""
 	label.Font = Enum.Font.SourceSans
 	label.TextSize = 16
 	label.TextWrapped = true
 	label.BackgroundTransparency = 1
+
+	-- ESTAS DOS LÍNEAS SON LA CLAVE
+	label.Size = UDim2.new(1, 0, 0, 0)
+	label.AutomaticSize = Enum.AutomaticSize.Y
+
 	label.Parent = scrollFrame
 
 	if esSistema then
@@ -40,20 +57,34 @@ local function mostrarMensaje(nombre, texto, esSistema)
 	scrollFrame.CanvasPosition = Vector2.new(0, scrollFrame.CanvasSize.Y.Offset)
 end
 
--- Enviar mensaje al servidor
+-- -------------------- ENVIAR MENSAJE --------------------
 local function enviarMensaje(mensaje)
-	if mensaje == "" then return end
+	print("[ChatClient] ✉️ enviarMensaje llamado con:", mensaje)
+	if mensaje == "" then
+		print("[ChatClient] ⚠️ Mensaje vacío, no se envía.")
+		return
+	end
+
+	if not chatEvent then
+		warn("[ChatClient] ❌ chatEvent es nil, no se puede enviar.")
+		return
+	end
+
+	print("[ChatClient] FireServer con mensaje:", mensaje)
 	chatEvent:FireServer(mensaje)
 	textBox.Text = ""
+	print("[ChatClient] ✅ FireServer ejecutado, TextBox limpiado.")
 end
 
--- Construir la GUI del chat
+-- -------------------- CONSTRUIR GUI --------------------
 local function construirGUI()
+	print("[ChatClient] 🏗️ construirGUI iniciado...")
+
 	screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "ChatGUI"
 	screenGui.Parent = player:WaitForChild("PlayerGui")
+	print("[ChatClient] ScreenGui creado.")
 
-	-- Frame contenedor
 	local chatFrame = Instance.new("Frame")
 	chatFrame.Name = "ChatFrame"
 	chatFrame.Size = UDim2.new(0, 400, 0, 300)
@@ -62,8 +93,8 @@ local function construirGUI()
 	chatFrame.BackgroundTransparency = 0.7
 	chatFrame.BorderSizePixel = 0
 	chatFrame.Parent = screenGui
+	print("[ChatClient] Frame creado.")
 
-	-- Área de mensajes (ScrollingFrame)
 	scrollFrame = Instance.new("ScrollingFrame")
 	scrollFrame.Name = "ScrollFrame"
 	scrollFrame.Size = UDim2.new(1, -10, 1, -50)
@@ -72,11 +103,12 @@ local function construirGUI()
 	scrollFrame.ScrollBarThickness = 5
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.Parent = chatFrame
+	print("[ChatClient] ScrollingFrame creado.")
 
 	uiListLayout = Instance.new("UIListLayout")
 	uiListLayout.Parent = scrollFrame
+	print("[ChatClient] UIListLayout creado.")
 
-	-- Campo de entrada
 	textBox = Instance.new("TextBox")
 	textBox.Name = "TextBox"
 	textBox.Size = UDim2.new(1, -10, 0, 40)
@@ -88,30 +120,48 @@ local function construirGUI()
 	textBox.ClearTextOnFocus = false
 	textBox.Text = ""
 	textBox.Parent = chatFrame
+	print("[ChatClient] TextBox creado.")
 
-	-- Detectar Enter en el TextBox
+	-- Detectar Enter
 	textBox.FocusLost:Connect(function(enterPressed)
+		print("[ChatClient] 🔘 FocusLost - enterPressed:", enterPressed)
 		if enterPressed then
 			enviarMensaje(textBox.Text)
 		end
 	end)
 
-	-- Recibir mensajes del servidor
+	-- -------------------- CONEXIÓN DEL EVENTO --------------------
+	print("[ChatClient] Conectando OnClientEvent...")
 	chatEvent.OnClientEvent:Connect(function(mensaje, nombreRemitente, esSistema)
+		print("[ChatClient] 📩 OnClientEvent recibido:")
+		print("[ChatClient]    mensaje:", mensaje)
+		print("[ChatClient]    nombreRemitente:", nombreRemitente)
+		print("[ChatClient]    esSistema:", esSistema)
 		mostrarMensaje(nombreRemitente or "Sistema", mensaje, esSistema)
 	end)
+	print("[ChatClient] ✅ OnClientEvent conectado.")
 
-	-- Mensaje de bienvenida
+	-- Mensaje de bienvenida (sin depender del servidor)
 	mostrarMensaje("Sistema", "Chat blindado activo. Sé respetuoso.", true)
 
-	-- Desactivar el chat por defecto de Roblox
-	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+	-- Desactivar chat de Roblox
+	print("[ChatClient] Desactivando chat por defecto de Roblox...")
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+	print("[ChatClient] ✅ Chat de Roblox desactivado.")
 end
 
--- Inicializar el módulo
+-- -------------------- INICIALIZACIÓN --------------------
 function ChatClient.Iniciar(gui)
+	print("[ChatClient] 🚀 Iniciar llamado. gui:", gui)
 	player = Players.LocalPlayer
+	if not player then
+		warn("[ChatClient] ❌ No se pudo obtener LocalPlayer.")
+		return
+	end
+	print("[ChatClient] ✅ LocalPlayer:", player.Name)
 	construirGUI()
 end
+
+print("[ChatClient] === MÓDULO LISTO ===")
 
 return ChatClient
