@@ -1,17 +1,13 @@
--- ChatFilter.lua (Módulo de servidor - BLINDADO CON DOBLE CAPA)
--- Capa 1: TextService:FilterStringAsync (Roblox)
--- Capa 2: Tu sistema (normalización, Levenshtein, frases, emojis, gemidos)
--- Responsabilidad única: Validar mensajes de chat usando ambas capas.
--- Delega sanciones al ModerationManager.
+-- ChatFilter.lua | Versión Lite (Gratuita)
+-- Doble capa: TextService (Roblox) + Sistema propio (normalización, Levenshtein, emojis).
+-- Sin dependencia de ModerationManager. Solo devuelve válido/inválido.
 
 local ChatFilter = {}
 local Players = game:GetService("Players")
-local TextService = game:GetService("TextService") -- NUEVA DEPENDENCIA
+local TextService = game:GetService("TextService")
 
--- Dependencias
 local ChatConfig = require(script.Parent:WaitForChild("ChatConfig", 5))
 local ProfanityData = require(script.Parent:WaitForChild("ProfanityData", 5))
-local ModerationManager = require(script.Parent:WaitForChild("ModerationManager", 5))
 
 -- Estado privado (rate limiting)
 local peticionesPorJugador = {}
@@ -119,75 +115,51 @@ local function esInsulto(palabraNormalizada)
 end
 
 -- ================================================================
--- API PÚBLICA (MEJORADA CON DOBLE CAPA)
+-- API PÚBLICA (VERSIÓN LITE - Solo filtra, no sanciona)
 -- ================================================================
 
 function ChatFilter.validarMensaje(player, mensaje)
-	-- 0. Validaciones defensivas
-	if not player or not player.Parent then return nil, "Jugador inválido." end
-	if type(mensaje) ~= "string" or #mensaje > ChatConfig.MAX_MENSAJE_LENGTH then return nil, "Mensaje no válido." end
+	-- Validaciones defensivas
+	if not player or not player.Parent then
+		return false, "Jugador inválido."
+	end
+	if type(mensaje) ~= "string" or #mensaje > ChatConfig.MAX_MENSAJE_LENGTH then
+		return false, "Mensaje no válido."
+	end
 
-	-- ================================================================
-	-- CAPA 1: FILTRO DE ROBLOX (FilterStringAsync)
-	-- ================================================================
+	-- CAPA 1: Roblox (FilterStringAsync)
 	local exitoRoblox, resultadoRoblox = pcall(function()
 		return TextService:FilterStringAsync(mensaje, player.UserId)
 	end)
 
 	if exitoRoblox and resultadoRoblox then
 		local mensajeFiltradoRoblox = resultadoRoblox:GetNonChatStringForBroadcastAsync()
-		-- Si Roblox censuró algo, el mensaje filtrado será diferente al original
 		if mensajeFiltradoRoblox ~= mensaje then
-			-- Roblox detectó contenido inapropiado. Aplicamos sanción.
+			-- Roblox detectó contenido inapropiado
 			print("[ChatFilter] CAPA 1 (Roblox): Mensaje bloqueado de " .. player.Name)
-			local strikes = ModerationManager.aplicarSancion(player)
-			if strikes >= ChatConfig.MAX_STRIKES then
-				return nil, "Has sido expulsado por múltiples infracciones."
-			end
-			return nil, "Tu mensaje fue bloqueado por el sistema de seguridad. Strike " .. strikes .. " de " .. ChatConfig.MAX_STRIKES .. "."
+			return false, "Tu mensaje fue bloqueado por el sistema de seguridad."
 		end
 	end
 	-- Si falla FilterStringAsync (error de red), dejamos pasar a la Capa 2
-	-- para no bloquear comunicación legítima por un fallo externo.
 
-	-- ================================================================
-	-- CAPA 2: TU SISTEMA (Gemidos, Rate Limiting, Silencio, Insultos)
-	-- ================================================================
-
-	-- Regla de oro: detección de ~ (gemidos simulados)
+	-- CAPA 2: Sistema propio (gemidos, rate limiting, insultos)
 	if contieneGemido(mensaje) then
 		print("[ChatFilter] CAPA 2: Gemido detectado de " .. player.Name)
-		local strikes = ModerationManager.aplicarSancion(player)
-		if strikes >= ChatConfig.MAX_STRIKES then
-			return nil, "Has sido expulsado por múltiples infracciones."
-		end
-		return nil, "Tu mensaje contiene símbolos no permitidos. Strike " .. strikes .. " de " .. ChatConfig.MAX_STRIKES .. "."
+		return false, "Tu mensaje contiene símbolos no permitidos."
 	end
 
-	-- Rate limiting
 	if esPeticionExcesiva(player.UserId) then
-		ModerationManager.aplicarSancion(player)
-		return nil, "Demasiados mensajes. Has sido sancionado."
+		print("[ChatFilter] CAPA 2: Rate limiting activado para " .. player.Name)
+		return false, "Demasiados mensajes. Espera un momento."
 	end
 
-	-- Silencio previo
-	if ModerationManager.estaSilenciado(player) then
-		local restante = ModerationManager.tiempoRestante(player)
-		return nil, "Estás silenciado. Espera " .. math.ceil(restante) .. " segundos."
-	end
-
-	-- Filtro de contenido
 	if ChatFilter.contieneInsulto(mensaje) then
 		print("[ChatFilter] CAPA 2: Insulto detectado de " .. player.Name)
-		local strikes = ModerationManager.aplicarSancion(player)
-		if strikes >= ChatConfig.MAX_STRIKES then
-			return nil, "Has sido expulsado por múltiples infracciones."
-		end
-		return nil, "Tu mensaje contiene lenguaje inapropiado. Strike " .. strikes .. " de " .. ChatConfig.MAX_STRIKES .. "."
+		return false, "Tu mensaje contiene lenguaje inapropiado."
 	end
 
 	-- Si pasó ambas capas, el mensaje es válido
-	return mensaje, nil
+	return true, mensaje
 end
 
 function ChatFilter.contieneInsulto(mensaje)
