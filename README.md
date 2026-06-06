@@ -14,32 +14,14 @@ I'm 16 years old. This is what I know how to do.
 
 ---
 
-## 🚀 Features (Lite version)
+## 🚀 Features
 
-- ✅ **Multilingual insult detection** (Spanish, English, Portuguese)  
-- ✅ **Levenshtein distance** – catches evasion attempts like `korer`, `hoder`, `m1erd4`  
-- ✅ **Emoji translation** – blocks sexual emojis like 🍆, 💦, 🥵  
-- ✅ **Rate limiting** – anti‑spam protection  
-- ✅ **White‑list for innocent words** – avoids false positives  
-- ✅ **~ detection** – blocks simulated moaning  
-
-*(Need progressive strikes, auto‑silence, community reports and audit logs? Check out **ModerationManager Pro** below.)*
-
----
-
-## 🆚 Lite vs Pro
-
-| Feature | Lite (Free) | Pro |
-|---------|-------------|-------------------|
-| Insult detection | ✅ | ✅ |
-| Emoji filtering | ✅ | ✅ |
-| Rate limiting | ✅ | ✅ |
-| White‑list | ✅ | ✅ |
-| **Progressive strikes** | ❌ | ✅ |
-| **Auto‑silence & kick** | ❌ | ✅ |
-| **Community reports** (/report) | ❌ | ✅ |
-| **Circular audit log** | ❌ | ✅ |
-| **Priority support** | ❌ | ✅ |
+- **Multilingual insult detection** (Spanish, English, Portuguese)  
+- **Levenshtein distance** – catches evasion attempts like `korer`, `hoder`, `m1erd4`  
+- **Emoji translation** – blocks sexual emojis like 🍆, 💦, 🥵  
+- **Rate limiting** – anti‑spam protection  
+- **White‑list for innocent words** – avoids false positives  
+- **~ detection** – blocks simulated moaning  
 
 ---
 
@@ -63,7 +45,7 @@ That's it. The system works automatically – no configuration needed.
 
 ---
 
-## 📁 Files (Lite version)
+## 📁 Files
 
 | File | Type | Location | Purpose |
 |------|------|----------|---------|
@@ -88,15 +70,3 @@ The filter supports **Spanish, English, and Portuguese** by default. You can eas
 ---
 
 If this project helped you, consider starring ⭐ the repo. It means a lot.
-
----
-
-## 💰 Want the full system?
-
-Get **ModerationManager Pro**:  
-- Progressive strikes with auto‑silence and kick  
-- Community reports (/report command)  
-- Circular audit log  
-- Priority support  
-
-Contact me on Discord: `[tu discord]`
