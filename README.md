@@ -93,7 +93,7 @@ If this project helped you, consider starring ⭐ the repo. It means a lot.
 
 ## 💰 Want the full system?
 
-Get **ModerationManager Pro** for 200k Robux:  
+Get **ModerationManager Pro**:  
 - Progressive strikes with auto‑silence and kick  
 - Community reports (/report command)  
 - Circular audit log  
