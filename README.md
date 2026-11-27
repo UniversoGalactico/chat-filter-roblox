@@ -38,6 +38,6 @@ Native chat can still show a sender their own local echo even when delivery to o
 
 ## Tests
 
-Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua` and `luau tests/regression.lua`. The two mock suites exercise the Roblox boundary and startup; the pure suite includes differential edit-distance checks for the signature index, deterministic malformed input, and randomized delivery interleavings checked against an independent scan-based admission reference. No Studio validation is claimed. See [security assumptions](SECURITY.md).
+Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua` and `luau tests/regression.lua`. The two mock suites exercise the Roblox boundary and startup; the pure suite includes differential edit-distance checks for the signature index, deterministic malformed input, and randomized delivery interleavings checked against an independent scan-based admission reference. No Studio validation is claimed. CI also runs comparative synthetic benchmarks against the exact previous algorithm commits; medians are diagnostic, not a performance guarantee. See [security assumptions](SECURITY.md).
 
 MIT license. Contributions welcome.

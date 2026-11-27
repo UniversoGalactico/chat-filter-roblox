@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
       - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua && lua5.4 tests/bootstrap.lua
       - name: Install checksum-pinned Luau 0.734
@@ -29,3 +30,9 @@ jobs:
           chmod +x "$RUNNER_TEMP/luau/luau"
       - name: Run pure tests in Luau
         run: '"$RUNNER_TEMP/luau/luau" tests/regression.lua'
+      - name: Compare baseline and current algorithms
+        run: |
+          mkdir -p tests/.baseline
+          git show e16a29463f934d230f0c753e085e3d6ff856e7c7:server/TextPolicy.lua > tests/.baseline/TextPolicy.lua
+          git show 1ed1569898263fc96b28f5d8c647eb44ffad6ccd:server/DeliveryGate.lua > tests/.baseline/DeliveryGate.lua
+          "$RUNNER_TEMP/luau/luau" tests/benchmark.lua
