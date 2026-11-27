@@ -10,7 +10,10 @@ local function validSender(sender)
 end
 
 local function ringSlot(head, count, capacity)
-    return (head - 1 + count) % capacity + 1
+    -- head is 1..capacity, count is 0..capacity. At most one wrap is needed.
+    local slot = head + count
+    if slot > capacity then slot = slot - capacity end
+    return slot
 end
 function DeliveryGate.new(config)
     local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
