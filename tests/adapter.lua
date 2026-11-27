@@ -66,9 +66,14 @@ m.TextChannel=match
 match.Parent=nil
 assert(not allow(m,sb))
 match.Parent=chat
+assert(not allow(m,sb),"detached generation does not revive")
+allow=legacy:ForChannel(match)
+assert(allow(m,sb))
 match.Name="Renamed"
 assert(not allow(m,sb))
 match.Name="Match"
+assert(not allow(m,sb),"renamed generation does not revive")
+allow=legacy:ForChannel(match)
 assert(allow(m,sb))
 m.Text="IDIOTA"
 assert(not allow(m,sc))
@@ -97,7 +102,7 @@ legacy:Destroy()
 assert(not connected and not allow(m,sb))
 assert(not pcall(legacy.ForChannel,legacy,match))
 local stats=legacy:GetCounts()
-assert(stats.allow>0 and stats.word>0 and stats.muted>0 and stats.text_unavailable>0 and stats.stopped==1)
+assert(stats.allow>0 and stats.word>0 and stats.muted>0 and stats.text_unavailable>0 and stats.stopped==3 and stats.channel_invalid==2)
 stats.allow=0
 assert(legacy:GetCounts().allow>0)
 failLegacyRequire=true
@@ -108,6 +113,8 @@ local accepts=context:ForChannel(match)
 assert(match.ShouldDeliverCallback==nil,"no callback ownership side effect")
 assert(not pcall(context.ForChannel,context,match),"duplicate callback generation")
 assert(not pcall(context.ForChannel,context,channel("RBXGeneral")))
+assert(not pcall(context.ForChannel,context,channel("")))
+assert(not pcall(context.ForChannel,context,channel(string.rep("a",129))))
 assert(not pcall(context.ForChannel,context,reserved))
 assert(not pcall(Filter.new,{LegacyText=true}))
 options.ScopeAttributes.Match="Unexpected"

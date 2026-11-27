@@ -12,7 +12,7 @@ local REASONS = {
     allow=true, invalid_identity=true, muted=true, scope=true, invalid_clock=true,
     clock_regression=true, rate_limit=true, cache_capacity=true, text_unavailable=true,
     invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true,
-    word=true, fuzzy=true, policy_error=true, stopped=true,
+    word=true, fuzzy=true, policy_error=true, stopped=true, channel_invalid=true,
 }
 local MAX_COUNT = 2^53 - 1
 
@@ -46,7 +46,7 @@ function ChatFilter.new(options)
         counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
     end
     local function decide(message, recipient, channel, name)
-        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, &quot;invalid_identity&quot; end
+        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, &quot;channel_invalid&quot; end
         if message.TextChannel ~= channel then return false, &quot;invalid_identity&quot; end
         local source = message.TextSource
         if not source or not recipient then return false, &quot;invalid_identity&quot; end
@@ -85,6 +85,7 @@ function ChatFilter.new(options)
         assert(active, &quot;controller destroyed&quot;)
         assert(channel:IsA(&quot;TextChannel&quot;) and channel:IsDescendantOf(TextChatService), &quot;expected live TextChannel&quot;)
         local name = channel.Name
+        assert(#name &gt; 0 and #name &lt;= 128, &quot;invalid channel name length&quot;)
         assert(name:sub(1,3):upper() ~= &quot;RBX&quot;, &quot;reserved channel&quot;)
         assert(not bindings[channel], &quot;channel already bound; release before rebinding&quot;)
         local token = {}
@@ -98,6 +99,9 @@ function ChatFilter.new(options)
                 record(&quot;policy_error&quot;)
                 return false
             end
+            -- Observed detachment/rename invalidates this generation permanently.
+            -- Restoring the old name or parent must not silently resume delivery.
+            if reason == &quot;channel_invalid&quot; then bindings[channel] = nil end
             record(reason)
             return allow
         end

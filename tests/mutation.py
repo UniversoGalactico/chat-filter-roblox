@@ -9,6 +9,8 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["adapter_invalid_generation","ChatFilter.lua","adapter.lua","if reason == \"channel_invalid\" then bindings[channel] = nil end","if false then bindings[channel] = nil end"],
+  ["adapter_empty_channel_name","ChatFilter.lua","adapter.lua","assert(#name > 0 and #name <= 128, \"invalid channel name length\")","assert(true)"],
   ["gate_recent_scope","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.id == messageId"],
   ["gate_recent_id","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.scope == scope"],
   ["gate_recent_expiry","DeliveryGate.lua","regression.lua","recent.id == messageId and recent.expires > now","recent.id == messageId"],

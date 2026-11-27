@@ -10,7 +10,7 @@ local REASONS = {
     allow=true, invalid_identity=true, muted=true, scope=true, invalid_clock=true,
     clock_regression=true, rate_limit=true, cache_capacity=true, text_unavailable=true,
     invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true,
-    word=true, fuzzy=true, policy_error=true, stopped=true,
+    word=true, fuzzy=true, policy_error=true, stopped=true, channel_invalid=true,
 }
 local MAX_COUNT = 2^53 - 1
 
@@ -44,7 +44,7 @@ function ChatFilter.new(options)
         counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
     end
     local function decide(message, recipient, channel, name)
-        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, "invalid_identity" end
+        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, "channel_invalid" end
         if message.TextChannel ~= channel then return false, "invalid_identity" end
         local source = message.TextSource
         if not source or not recipient then return false, "invalid_identity" end
@@ -83,6 +83,7 @@ function ChatFilter.new(options)
         assert(active, "controller destroyed")
         assert(channel:IsA("TextChannel") and channel:IsDescendantOf(TextChatService), "expected live TextChannel")
         local name = channel.Name
+        assert(#name > 0 and #name <= 128, "invalid channel name length")
         assert(name:sub(1,3):upper() ~= "RBX", "reserved channel")
         assert(not bindings[channel], "channel already bound; release before rebinding")
         local token = {}
@@ -96,6 +97,9 @@ function ChatFilter.new(options)
                 record("policy_error")
                 return false
             end
+            -- Observed detachment/rename invalidates this generation permanently.
+            -- Restoring the old name or parent must not silently resume delivery.
+            if reason == "channel_invalid" then bindings[channel] = nil end
             record(reason)
             return allow
         end

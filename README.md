@@ -19,7 +19,7 @@ The default policy limits new messages to three per second per sender, across ch
 local policy = Filter.new({ScopeAttributes = {Match = "MatchId"}})
 ```
 
-ForChannel returns a callback; it never installs one. Only one active callback per channel per controller is allowed. ReleaseChannel(channel) revokes it permanently before an explicit rebind; it does not edit the engine callback or reset the rate budget. If your channel has existing rules, combine them in the sole owning script rather than replacing them. All RBX-prefixed channels are rejected, including RBXGeneral; leave platform-owned channels alone. Destroy stops the policy; callbacks left installed deny, so restart the server to remove it.
+ForChannel returns a callback; it never installs one. Only one active callback per channel per controller is allowed. ReleaseChannel(channel) revokes it permanently before an explicit rebind; it does not edit the engine callback or reset the rate budget. A callback that observes a renamed/detached channel also revokes itself. Explicitly release before changing channel identity; restoring a name does not revive an observed invalid binding. If your channel has existing rules, combine them in the sole owning script rather than replacing them. All RBX-prefixed channels are rejected, including RBXGeneral; leave platform-owned channels alone. Destroy stops the policy; callbacks left installed deny, so restart the server to remove it.
 
 ## Quick test
 
