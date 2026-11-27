@@ -124,6 +124,6 @@ for _, mode in ipairs({"unique","saturated","fanout"}) do
     compare("admission_"..mode,gateRunner(true,mode,30000),gateRunner(false,mode,30000),30000)
 end
 for _,mode in ipairs({"unique","saturated","fanout"}) do
-    compare("recent_vs_lite_"..mode,gateRunner(false,mode,30000,recentBaseline),gateRunner(false,mode,30000),30000)
+    compare("current_vs_lite_"..mode,gateRunner(false,mode,30000,recentBaseline),gateRunner(false,mode,30000),30000)
 end
 print("PASS: benchmark decision checksums")

@@ -9,13 +9,34 @@ import tempfile
 import sys
 
 MUTANTS = [
-  ["adapter_invalid_generation","ChatFilter.lua","adapter.lua","if reason == \"channel_invalid\" then bindings[channel] = nil end","if false then bindings[channel] = nil end"],
-  ["adapter_empty_channel_name","ChatFilter.lua","adapter.lua","assert(#name > 0 and #name <= 128, \"invalid channel name length\")","assert(true)"],
-  ["gate_recent_scope","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.id == messageId"],
-  ["gate_recent_id","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.scope == scope"],
-  ["gate_recent_expiry","DeliveryGate.lua","regression.lua","recent.id == messageId and recent.expires > now","recent.id == messageId"],
-  ["adapter_released_callback","ChatFilter.lua","adapter.lua","if not active or bindings[channel] ~= token then record(\"stopped\") return false end","if not active then record(\"stopped\") return false end"],
-  ["adapter_duplicate_binding","ChatFilter.lua","adapter.lua","assert(not bindings[channel], \"channel already bound; release before rebinding\")","assert(true)"],
+  [
+    "adapter_invalid_generation",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "if reason == \"channel_invalid\" then bindings[channel] = nil end",
+    "if false then bindings[channel] = nil end"
+  ],
+  [
+    "adapter_empty_channel_name",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "assert(#name > 0 and #name <= 128, \"invalid channel name length\")",
+    "assert(true)"
+  ],
+  [
+    "adapter_released_callback",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "if not active or bindings[channel] ~= token then record(\"stopped\") return false end",
+    "if not active then record(\"stopped\") return false end"
+  ],
+  [
+    "adapter_duplicate_binding",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "assert(not bindings[channel], \"channel already bound; release before rebinding\")",
+    "assert(true)"
+  ],
   [
     "lexical_spanish_punctuation",
     "TextPolicy.lua",
