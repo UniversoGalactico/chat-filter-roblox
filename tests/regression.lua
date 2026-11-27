@@ -51,42 +51,37 @@ expect(fuzzy("pelxxudo"), true, "two edits")
 expect(check("pelotxdo"), true, "fuzzy disabled by default")
 
 local gate = Gate.new(config)
-local calls = 0
-local function yes() calls = calls + 1 return true, "allow" end
-local function no() calls = calls + 1 return false, "word" end
-expect(gate:Decide("A", "id1", 0, yes), true, "first")
-for i = 1, 200 do expect(gate:Decide("A", "id1", 0.1, no), true, "recipient dedup") end
-expect(calls, 1, "evaluate once")
-expect(gate:Decide("A", "id2", 0.1, no), false, "deny")
-expect(gate:Decide("A", "id2", 0.2, yes), false, "deny cached")
-expect(gate:Decide("A", "id3", 0.2, yes), true, "third")
-expect(gate:Decide("A", "id4", 0.3, yes), false, "rate limit")
-expect(gate:Decide("A", "id4", 1.2, yes), false, "denial stable after rate window")
-expect(gate:Decide("A", "id5", 1.2, yes), true, "new window")
-expect(gate:Decide("B", "id1", 0, yes), true, "separate sender")
-expect(gate:Decide("A", "backwards", 1, yes), false, "clock regression")
-expect(gate:Decide("A", "", 2, yes), false, "empty ID")
-expect(gate:Decide("A", "badclock", 0/0, yes), false, "nan clock")
-expect(gate:Decide("A", "throw", 2.5, function() error("private") end), false, "error closed")
-expect(gate:Decide("A", "throw", 2.6, yes), false, "error cached")
+expect(gate:Admit("A", "id1", 0), true, "first")
+for i = 1, 200 do expect(gate:Admit("A", "id1", 0.1), true, "recipient dedup") end
+expect(gate:Admit("A", "id2", 0.1), true, "second")
+expect(gate:Admit("A", "id3", 0.2), true, "third")
+expect(gate:Admit("A", "id4", 0.3), false, "rate limit")
+expect(gate:Admit("A", "id4", 1.2), false, "denial stable after rate window")
+expect(gate:Admit("A", "id5", 1.2), true, "new window")
+expect(gate:Admit("B", "id1", 0), true, "separate sender")
+expect(gate:Admit("A", "backwards", 1), false, "clock regression")
+expect(gate:Admit("A", "", 2), false, "empty ID")
+expect(gate:Admit("A", "badclock", 0/0), false, "nan clock")
+expect(gate:Admit("A", "badclock", -1), false, "negative clock")
+expect(gate:Admit("A", "badclock", 2^41), false, "clock precision bound")
+expect(gate:Admit(nil, "bad", 0), false, "nil sender")
+expect(gate:Admit(0/0, "bad", 0), false, "nan sender")
+expect(gate:Admit("A", string.rep("a",129), 0), false, "ID length")
+gate:Forget(nil)
+gate:Forget(0/0)
 gate:Forget("A")
-expect(gate:Decide("A", "id4", 0, yes), true, "forget")
+expect(gate:Admit("A", "id4", 0), true, "forget")
 local tiny = Gate.new({MessagesPerSecond=1, DecisionTTL=2, MaxCachedMessages=2})
-expect(tiny:Decide("X", "1", 0, yes), true, "capacity first")
-expect(tiny:Decide("X", "2", 0, no), false, "capacity deny")
-expect(tiny:Decide("X", "3", 1.5, yes), false, "capacity full")
-expect(tiny:Decide("X", "2", 1.5, yes), false, "cached deny not evicted")
-expect(tiny:Decide("X", "3", 2, yes), false, "overflow denial stays stable")
-expect(tiny:Decide("X", "4", 4.1, yes), true, "idle quarantine expires")
+expect(tiny:Admit("X", "1", 0), true, "capacity first")
+expect(tiny:Admit("X", "2", 0), false, "capacity deny")
+expect(tiny:Admit("X", "3", 1.5), false, "capacity full")
+expect(tiny:Admit("X", "2", 1.5), false, "cached deny not evicted")
+expect(tiny:Admit("X", "3", 2), false, "overflow denial stays stable")
+expect(tiny:Admit("X", "4", 4.1), true, "idle quarantine expires")
 tiny:Clear()
-expect(tiny:Decide("X", "4", 0, yes), true, "clear state")
-local cleanGate = Gate.new(config)
-local allow, reason = cleanGate:Decide("A", "private", 0, function() return false, "private raw text" end)
-expect(allow, false, "unknown reason denied")
-expect(reason, "policy_error", "unknown reason not retained")
-local badAllow, badReason = cleanGate:Decide("B", "bad-allow", 0, function() return true, "unrecognized" end)
-expect(badAllow, false, "unknown allow contract rejected")
-expect(badReason, "policy_error", "invalid allow reason normalized")
+expect(tiny:Admit("X", "4", 0), true, "clear state")
+local ring = Gate.new({MessagesPerSecond=1, DecisionTTL=1, MaxCachedMessages=1})
+for i = 0, 1000 do expect(ring:Admit("R", "same", i), true, "ring wraps") end
 -- Deterministic malformed/random-byte smoke test; no raw input printed.
 local rng = 7
 for i = 1, 1000 do
@@ -129,42 +124,58 @@ for i = 1, 2000 do
     local shouldBlock = #candidate >= 6 and distance(candidate,target) <= 1
     expect(synthetic(candidate), not shouldBlock, "differential fuzzy")
 end
--- State-machine properties over seeded interleavings. Never count per-recipient callbacks as new messages.
-local modelGate = Gate.new({MessagesPerSecond=3, DecisionTTL=5, MaxCachedMessages=24})
-local models = {}
-local sequenceTime = 0
-for i = 1, 12000 do
-    rng = (rng * 48271) % 2147483647
-    sequenceTime = sequenceTime + (rng % 10) / 100
-    local sender = "S" .. (rng % 4)
-    local model = models[sender]
-    if not model then model = {decisions={}, evaluations={}} models[sender]=model end
-    if rng % 97 == 0 then
-        modelGate:Forget(sender)
-        models[sender] = nil
-    else
-        local id = "M" .. (rng % 120)
-        local prev = model.decisions[id]
-        local evaluated = false
-        local expected = rng % 5 ~= 0
-        local result, why = modelGate:Decide(sender, id, sequenceTime, function()
-            evaluated = true
-            model.evaluations[#model.evaluations+1] = sequenceTime
-            return expected, expected and "allow" or "word"
-        end)
-        if prev and sequenceTime-prev.time < 5 then
-            expect(result, prev.value, "live decision is stable")
-            expect(evaluated, false, "live decision is never re-evaluated")
+-- Independent scan-based model; compare every result and reason with the FIFO.
+local function reference(state, id, now, limit, ttl, capacity)
+    if now < state.last then return false, "clock_regression" end
+    state.last = now
+    local entry = state.cache[id]
+    if entry and entry.time + ttl > now then return entry.allow, entry.reason end
+    local countLive = 0
+    for key, value in pairs(state.cache) do
+        if value.time + ttl <= now then state.cache[key] = nil else countLive = countLive + 1 end
+    end
+    if now < state.quarantine or countLive >= capacity then
+        state.quarantine = now + ttl
+        return false, "cache_capacity"
+    end
+    state.quarantine = 0
+    local current = {}
+    for _, time in ipairs(state.accepted) do if now-time < 1 then current[#current+1]=time end end
+    state.accepted=current
+    local allow=#current < limit
+    local reason=allow and "allow" or "rate_limit"
+    if allow then current[#current+1]=now end
+    state.cache[id]={time=now,allow=allow,reason=reason}
+    return allow,reason
+end
+for _, spec in ipairs({{1,1,1},{3,5,24},{20,60,256},{5,2.5,6},{2,10,32}}) do
+    local limit,ttl,capacity=spec[1],spec[2],spec[3]
+    local modelGate=Gate.new({MessagesPerSecond=limit,DecisionTTL=ttl,MaxCachedMessages=capacity})
+    local models,sequenceTime={},0
+    for i=1,20000 do
+        rng=(rng*48271)%2147483647
+        sequenceTime=sequenceTime+(rng%20)/100
+        local sender="S"..(rng%4)
+        local model=models[sender]
+        if not model then
+            model={cache={},accepted={},last=0,quarantine=0}
+            models[sender]=model
+        end
+        if rng%97==0 then
+            modelGate:Forget(sender)
+            models[sender]=nil
+        elseif rng%199==0 then
+            modelGate:Clear()
+            models={}
         else
-            model.decisions[id] = {time=sequenceTime, value=result}
+            local id="M"..(rng%120)
+            local now=sequenceTime
+            if rng%41==0 and model.last>1 then now=model.last-0.5 end
+            local wanted,reason=reference(model,id,now,limit,ttl,capacity)
+            local actual,why=modelGate:Admit(sender,id,now)
+            expect(actual,wanted,"reference decision")
+            expect(why,reason,"reference reason")
         end
-        -- Cached allows/denials do not extend TTL; overflow denials may quarantine longer.
-        if why=="cache_capacity" then model.decisions[id]={time=sequenceTime,value=false} end
-        while model.evaluations[1] and sequenceTime-model.evaluations[1]>=1 do
-            table.remove(model.evaluations,1)
-        end
-        expect(#model.evaluations <= 3, true, "sliding evaluation bound")
-        if evaluated then expect(result, expected, "evaluation result preserved") end
     end
 end
 print("PASS: " .. count .. " assertions")

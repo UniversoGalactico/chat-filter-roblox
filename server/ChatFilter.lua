@@ -7,10 +7,6 @@ local Config = require(script.Parent.ChatConfiguration)
 local Data = require(script.Parent.ProfanityData)
 
 local ChatFilter = {}
--- Constant evaluator: the gate caches admission only, never a recipient's text verdict.
-local function admit()
-    return true, "allow"
-end
 function ChatFilter.CreatePredicate(mode)
     assert(mode == "context" or mode == "legacy_text", "invalid delivery mode")
     local evaluate
@@ -35,7 +31,7 @@ function ChatFilter.CreatePredicate(mode)
             end
             -- Trusted server-side gameplay restriction, never a substitute for Roblox permissions.
             if sender:GetAttribute("ChatFilterMuted") == true then return false end
-            local admitted = gate:Decide(sender, message.MessageId, os.clock(), admit)
+            local admitted = gate:Admit(sender, message.MessageId, os.clock())
             if not admitted then return false end
             -- Content-independent mode must never even access the Text property.
             if mode == "context" then return true end
