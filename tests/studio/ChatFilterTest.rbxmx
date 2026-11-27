@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<roblox version="4"><External>null</External><External>nil</External><Item class="Folder" referent="RBX0"><Properties><string name="Name">ChatFilterTest</string></Properties>
+<Item class="ModuleScript" referent="RBX1"><Properties><string name="Name">ChatFilter</string><ProtectedString name="Source">-- Optional Roblox delivery policy. Native TextChatService remains authoritative.
+-- Install ChatFilter, DeliveryGate and ContextPolicy as sibling server ModuleScripts.
+local Players = game:GetService(&quot;Players&quot;)
+local TextChatService = game:GetService(&quot;TextChatService&quot;)
+local DeliveryGate = require(script.Parent.DeliveryGate)
+local ContextPolicy = require(script.Parent.ContextPolicy)
+
+local ChatFilter = {}
+local REASONS = {
+    allow=true, invalid_identity=true, muted=true, scope=true, invalid_clock=true,
+    clock_regression=true, rate_limit=true, cache_capacity=true, text_unavailable=true,
+    invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true,
+    word=true, fuzzy=true, policy_error=true, stopped=true, channel_invalid=true,
+}
+local MAX_COUNT = 2^53 - 1
+
+function ChatFilter.new(options)
+    if options == nil then options = {} end
+    assert(type(options) == &quot;table&quot; and getmetatable(options) == nil, &quot;options must be a plain table&quot;)
+    local known = {MessagesPerSecond=true, DecisionTTL=true, MaxCachedMessages=true, ScopeAttributes=true, LegacyText=true}
+    for key in pairs(options) do assert(known[key], &quot;unknown ChatFilter option&quot;) end
+    assert(options.LegacyText == nil or type(options.LegacyText) == &quot;boolean&quot;, &quot;LegacyText must be boolean&quot;)
+    local gate = DeliveryGate.new({
+        MessagesPerSecond = options.MessagesPerSecond == nil and 3 or options.MessagesPerSecond,
+        DecisionTTL = options.DecisionTTL == nil and 10 or options.DecisionTTL,
+        MaxCachedMessages = options.MaxCachedMessages == nil and 64 or options.MaxCachedMessages,
+    })
+    local context = ContextPolicy.new(options)
+    local evaluate
+    if options.LegacyText == true then
+        local TextPolicy = require(script.Parent.TextPolicy)
+        local Data = require(script.Parent.ProfanityData)
+        local config = require(script.Parent.ChatConfiguration)
+        evaluate = TextPolicy.new(config, Data)
+    end
+
+    local active, warnedUnavailable = true, false
+    local counters, leaving = {}, setmetatable({}, {__mode=&quot;k&quot;})
+    local removing = Players.PlayerRemoving:Connect(function(player)
+        leaving[player] = true
+        gate:Forget(player)
+    end)
+    local function record(reason)
+        counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
+    end
+    local function decide(message, recipient, channel, name)
+        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, &quot;channel_invalid&quot; end
+        if message.TextChannel ~= channel then return false, &quot;invalid_identity&quot; end
+        local source = message.TextSource
+        if not source or not recipient then return false, &quot;invalid_identity&quot; end
+        if source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true then
+            return false, &quot;invalid_identity&quot;
+        end
+        local sender = Players:GetPlayerByUserId(source.UserId)
+        local receiver = Players:GetPlayerByUserId(recipient.UserId)
+        if not sender or sender.Parent ~= Players or leaving[sender]
+            or not receiver or receiver.Parent ~= Players or leaving[receiver] then
+            return false, &quot;invalid_identity&quot;
+        end
+        -- Charge once per valid logical send even if a recipient fails the group rule.
+        -- Context is never cached: a mute or group change can still deny a cached admission.
+        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)
+        if not admitted then return false, admissionReason end
+        local permitted, reason = context(sender, receiver, name)
+        if not permitted then return false, reason end
+        if not evaluate then return true, &quot;allow&quot; end
+        local text = message.Text -- legacy only; never cache this verdict or content
+        if type(text) ~= &quot;string&quot; or text == &quot;&quot; then
+            if not warnedUnavailable then
+                warnedUnavailable = true
+                warn(&quot;[ChatFilter] Legacy text unavailable. Disable LegacyText.&quot;)
+            end
+            return false, &quot;text_unavailable&quot;
+        end
+        return evaluate(text)
+    end
+    -- One active callback generation per channel. A released callback never revives.
+    local bindings = setmetatable({}, {__mode=&quot;k&quot;})
+    local controller = {}
+    function controller:ReleaseChannel(channel)
+        if channel == nil then return end
+        bindings[channel] = nil
+    end
+    function controller:ForChannel(channel)
+        assert(active, &quot;controller destroyed&quot;)
+        assert(channel:IsA(&quot;TextChannel&quot;) and channel:IsDescendantOf(TextChatService), &quot;expected live TextChannel&quot;)
+        local name = channel.Name
+        assert(#name &gt; 0 and #name &lt;= 128, &quot;invalid channel name length&quot;)
+        assert(name:sub(1,3):upper() ~= &quot;RBX&quot;, &quot;reserved channel&quot;)
+        assert(not bindings[channel], &quot;channel already bound; release before rebinding&quot;)
+        local token = {}
+        bindings[channel] = token
+        -- Does NOT assign or replace ShouldDeliverCallback. The sole owner does that.
+        return function(message, recipient)
+            if not active or bindings[channel] ~= token then record(&quot;stopped&quot;) return false end
+            local ok, allow, reason = pcall(decide, message, recipient, channel, name)
+            if not ok or type(allow) ~= &quot;boolean&quot; or not REASONS[reason]
+                or allow ~= (reason == &quot;allow&quot;) then
+                record(&quot;policy_error&quot;)
+                return false
+            end
+            -- Observed detachment/rename invalidates this generation permanently.
+            -- Restoring the old name or parent must not silently resume delivery.
+            if reason == &quot;channel_invalid&quot; then bindings[channel] = nil end
+            record(reason)
+            return allow
+        end
+    end
+    function controller:GetCounts()
+        local copy = {}
+        for reason in pairs(REASONS) do copy[reason] = counters[reason] or 0 end
+        return copy
+    end
+    function controller:Destroy()
+        if not active then return end
+        active = false
+        removing:Disconnect()
+        for channel in pairs(bindings) do bindings[channel] = nil end
+        gate:Clear()
+    end
+    return controller
+end
+return ChatFilter
+</ProtectedString></Properties></Item>
+<Item class="ModuleScript" referent="RBX2"><Properties><string name="Name">DeliveryGate</string><ProtectedString name="Source">-- Bounded, non-yielding message admission. No user callbacks or message content.
+local DeliveryGate = {}
+local MAX_CLOCK = 2^40
+local DEFAULT_SCOPE = {}
+-- IDs are trusted engine objects or finite primitive keys in pure tests.
+local function validSender(sender)
+    local kind = type(sender)
+    if kind == &quot;number&quot; then return sender == sender and math.abs(sender) &lt; math.huge end
+    return kind == &quot;table&quot; or kind == &quot;userdata&quot; or (kind == &quot;string&quot; and #sender &gt; 0 and #sender &lt;= 128)
+end
+
+local function ringSlot(head, count, capacity)
+    -- head is 1..capacity, count is 0..capacity. At most one wrap is needed.
+    local slot = head + count
+    if slot &gt; capacity then slot = slot - capacity end
+    return slot
+end
+function DeliveryGate.new(config)
+    local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
+    assert(type(limit) == &quot;number&quot; and limit &gt;= 1 and limit &lt;= 20 and limit % 1 == 0)
+    assert(type(ttl) == &quot;number&quot; and ttl &gt;= 1 and ttl &lt;= 60)
+    assert(type(capacity) == &quot;number&quot; and capacity &gt;= limit and capacity &lt;= 256 and capacity % 1 == 0)
+    local senders = setmetatable({}, { __mode = &quot;k&quot; })
+    local gate = {}
+    function gate:Forget(sender)
+        if validSender(sender) then senders[sender] = nil end
+    end
+    function gate:Clear()
+        for sender in pairs(senders) do senders[sender] = nil end
+    end
+    function gate:Admit(sender, messageId, now, scope)
+        if scope == nil then scope = DEFAULT_SCOPE end
+        if type(messageId) ~= &quot;string&quot; or #messageId == 0 or #messageId &gt; 128 then
+            return false, &quot;invalid_identity&quot;
+        end
+        -- An existing entry proves that its key has already passed validation.
+        -- Raw map lookup performs no user equality callbacks and allocates nothing.
+        local state = senders[sender]
+        if not state and not validSender(sender) then return false, &quot;invalid_identity&quot; end
+        local bucket = state and state.scopes[scope]
+        if not bucket and not validSender(scope) then return false, &quot;invalid_identity&quot; end
+        if type(now) ~= &quot;number&quot; or not (now &gt;= 0 and now &lt;= MAX_CLOCK) then
+            return false, &quot;invalid_clock&quot;
+        end
+        if not state then
+            state = { scopes = {}, order = {}, attempts = {}, head = 1, count = 0, last = now }
+            senders[sender] = state
+        end
+        if now &lt; state.last then return false, &quot;clock_regression&quot; end
+        state.last = now
+        local cached = bucket and bucket.ids[messageId]
+        if cached and cached.expires &gt; now then return cached.allow, cached.reason end
+        -- Equal TTL plus monotone time makes expiry FIFO.
+        while state.count &gt; 0 do
+            local oldest = state.order[state.head]
+            if oldest.expires &gt; now then break end
+            local oldBucket = state.scopes[oldest.scope]
+            oldBucket.ids[oldest.id] = nil
+            oldBucket.count = oldBucket.count - 1
+            if oldBucket.count == 0 then state.scopes[oldest.scope] = nil end
+            state.order[state.head] = nil
+            state.head = ringSlot(state.head, 1, capacity)
+            state.count = state.count - 1
+        end
+        -- Never evict a live decision to admit a new message.
+        if (state.overflowUntil and state.overflowUntil &gt; now) or state.count &gt;= capacity then
+            state.overflowUntil = now + ttl
+            return false, &quot;cache_capacity&quot;
+        end
+        state.overflowUntil = nil
+        while state.attempts[1] and now - state.attempts[1] &gt;= 1 do
+            table.remove(state.attempts, 1)
+        end
+        local allow = #state.attempts &lt; limit
+        local reason = allow and &quot;allow&quot; or &quot;rate_limit&quot;
+        if allow then state.attempts[#state.attempts + 1] = now end
+        local slot = ringSlot(state.head, state.count, capacity)
+        bucket = state.scopes[scope] -- an expired last entry may have removed the old bucket
+        if not bucket then
+            bucket = {ids={},count=0}
+            state.scopes[scope] = bucket
+        end
+        local decision = {scope=scope,id=messageId,expires=now+ttl,allow=allow,reason=reason}
+        state.order[slot] = decision
+        bucket.ids[messageId] = decision
+        bucket.count = bucket.count + 1
+        state.count = state.count + 1
+        return allow, reason
+    end
+    return gate
+end
+return DeliveryGate
+</ProtectedString></Properties></Item>
+<Item class="ModuleScript" referent="RBX3"><Properties><string name="Name">ContextPolicy</string><ProtectedString name="Source">-- Content-independent gameplay delivery rules. No user text, metadata or identity storage.
+local ContextPolicy = {}
+local MAX_INTEGER = 2^53 - 1
+local function validScope(value)
+    if type(value) == &quot;string&quot; then return #value &gt; 0 and #value &lt;= 64 end
+    return type(value) == &quot;number&quot; and value &gt;= -MAX_INTEGER and value &lt;= MAX_INTEGER and value % 1 == 0
+end
+
+function ContextPolicy.new(config)
+    local configured = config.ScopeAttributes
+    if configured == nil then configured = {} end
+    assert(type(configured) == &quot;table&quot; and getmetatable(configured) == nil, &quot;invalid scope rules&quot;)
+    local scopes, count = {}, 0
+    for channel, attribute in pairs(configured) do
+        count = count + 1
+        assert(count &lt;= 32, &quot;too many scope rules&quot;)
+        assert(type(channel) == &quot;string&quot; and #channel &gt; 0 and #channel &lt;= 128, &quot;invalid scope channel&quot;)
+        assert(type(attribute) == &quot;string&quot; and #attribute &gt; 0 and #attribute &lt;= 64
+            and attribute:match(&quot;^[A-Za-z_][A-Za-z0-9_]*$&quot;), &quot;invalid scope attribute&quot;)
+        assert(attribute ~= &quot;ChatFilterMuted&quot; and attribute:sub(1,3):upper() ~= &quot;RBX&quot;, &quot;reserved scope attribute&quot;)
+        scopes[channel] = attribute
+    end
+    return function(sender, receiver, channelName)
+        local muted = sender:GetAttribute(&quot;ChatFilterMuted&quot;)
+        -- A missing attribute is normal. Unexpected values indicate a broken server policy.
+        if muted ~= nil and muted ~= false then return false, &quot;muted&quot; end
+        local attribute = scopes[channelName]
+        if attribute then
+            -- Only server-owned gameplay groups, never a substitute for platform permissions.
+            -- Missing or malformed group membership denies delivery.
+            local left, right = sender:GetAttribute(attribute), receiver:GetAttribute(attribute)
+            if not validScope(left) or not validScope(right) or left ~= right then return false, &quot;scope&quot; end
+        end
+        return true, &quot;allow&quot;
+    end
+end
+return ContextPolicy
+</ProtectedString></Properties></Item>
+<Item class="Script" referent="RBX4"><Properties><string name="Name">Smoke</string><ProtectedString name="Source">-- TEST ONLY. Place beside ChatFilter, DeliveryGate and ContextPolicy in ServerScriptService.
+local RunService = game:GetService(&quot;RunService&quot;)
+if not RunService:IsStudio() then return end
+local Players = game:GetService(&quot;Players&quot;)
+local Chat = game:GetService(&quot;TextChatService&quot;)
+local Filter = require(script.Parent.ChatFilter)
+local Gate = require(script.Parent.DeliveryGate)
+local Context = require(script.Parent.ContextPolicy)
+
+-- F5: immediate checks with synthetic inputs; no message content or network calls.
+local gate = Gate.new({MessagesPerSecond=1, DecisionTTL=2, MaxCachedMessages=4})
+assert(gate:Admit(&quot;A&quot;,&quot;one&quot;,0))
+assert(gate:Admit(&quot;A&quot;,&quot;one&quot;,0.1))
+assert(not gate:Admit(&quot;A&quot;,&quot;two&quot;,0.1))
+assert(gate:Admit(&quot;A&quot;,&quot;three&quot;,1))
+gate:Clear()
+assert(gate:Admit(&quot;A&quot;,&quot;two&quot;,0))
+local context = Context.new({ScopeAttributes={Test=&quot;Group&quot;}})
+local function mock(group)
+    return {GetAttribute=function(_,name) if name==&quot;Group&quot; then return group end end}
+end
+assert(context(mock(&quot;A&quot;),mock(&quot;A&quot;),&quot;Test&quot;))
+assert(not context(mock(&quot;A&quot;),mock(&quot;B&quot;),&quot;Test&quot;))
+-- Two additional quota invariants and a malformed input check.
+assert(not gate:Admit(&quot;A&quot;,&quot;another&quot;,0,&quot;second channel&quot;))
+assert(not gate:Admit(&quot;A&quot;,&quot;bad-clock&quot;,0/0))
+assert(not context(mock(&quot;A&quot;),mock(nil),&quot;Test&quot;))
+
+-- Two clients: native delivery check. No automatic sends or custom transport.
+local NAME, GROUP = &quot;ChatFilterTest&quot;, &quot;ChatFilterTestGroup&quot;
+assert(not Chat:FindFirstChild(NAME,true),&quot;Test channel already exists&quot;)
+local controller = Filter.new({ScopeAttributes={[NAME]=GROUP}})
+local channel = Instance.new(&quot;TextChannel&quot;)
+channel.Name = NAME
+channel.Parent = Chat
+
+-- Real Roblox Instances, synthetic callback arguments: no player chat is sent.
+local first = controller:ForChannel(channel)
+assert(not pcall(controller.ForChannel,controller,channel),&quot;duplicate binding must fail&quot;)
+assert(not first(nil,nil),&quot;malformed callback must deny&quot;)
+controller:ReleaseChannel(channel)
+assert(not first(nil,nil),&quot;revoked callback must deny&quot;)
+assert(controller:GetCounts().stopped==1,&quot;revocation counted&quot;)
+local current = controller:ForChannel(channel)
+assert(not first(nil,nil),&quot;previous generation cannot revive&quot;)
+assert(controller:GetCounts().stopped==2,&quot;stale callback counted&quot;)
+assert(not current(nil,nil),&quot;new callback rejects malformed message&quot;)
+local snapshot = controller:GetCounts()
+snapshot.stopped = 0
+assert(controller:GetCounts().stopped==2,&quot;counter snapshot must be independent&quot;)
+print(&quot;[ChatFilter TEST] PASS: 18 local checks. Native delivery is NOT yet verified.&quot;)
+channel.ShouldDeliverCallback = current
+local active, joined = true, 0
+local assigned = {}
+script:SetAttribute(&quot;ShowCounts&quot;,0)
+local function add(player)
+    if not active or player.Parent~=Players or assigned[player] then return end
+    if player:GetAttribute(GROUP)~=nil then warn(&quot;[TEST] Existing group attribute; skipped&quot;) return end
+    joined=joined+1
+    local group=joined==1 and &quot;A&quot; or &quot;B&quot;
+    assigned[player]=true
+    player:SetAttribute(GROUP,group)
+    local ok,source=pcall(function() return channel:AddUserAsync(player.UserId) end)
+    if not active or not assigned[player] or player.Parent~=Players then
+        if ok and source and source.Parent==channel then source:Destroy() end
+        return
+    end
+    if not ok or not source then
+        warn(&quot;[TEST] Native membership unavailable; local checks are independent. Delivery test not verified.&quot;)
+        return
+    end
+    print(&quot;[TEST] Native membership ready, group&quot;,group)
+end
+local added=Players.PlayerAdded:Connect(add)
+local removing=Players.PlayerRemoving:Connect(function(player)
+    if assigned[player] then assigned[player]=nil player:SetAttribute(GROUP,nil) end
+end)
+for _,player in ipairs(Players:GetPlayers()) do task.spawn(add,player) end
+local stats=script:GetAttributeChangedSignal(&quot;ShowCounts&quot;):Connect(function()
+    local c=controller:GetCounts()
+    print(&quot;[TEST] allow&quot;,c.allow,&quot;scope&quot;,c.scope,&quot;rate&quot;,c.rate_limit,&quot;errors&quot;,c.policy_error,&quot;identity&quot;,c.invalid_identity)
+end)
+script.Destroying:Connect(function()
+    if not active then return end
+    active=false
+    added:Disconnect()
+    removing:Disconnect()
+    stats:Disconnect()
+    controller:ReleaseChannel(channel)
+    controller:Destroy()
+    channel:Destroy()
+    for player in pairs(assigned) do
+        if player.Parent==Players then player:SetAttribute(GROUP,nil) end
+    end
+    table.clear(assigned)
+end)
+print(&quot;[TEST] Two-client check: select ChatFilterTest; change B to A and repeat. Change ShowCounts to print totals.&quot;)
+</ProtectedString><bool name="Disabled">false</bool></Properties></Item>
+</Item></roblox>

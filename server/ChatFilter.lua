@@ -1,180 +1,123 @@
--- ChatFilter.lua | Versión Lite (Gratuita)
--- Doble capa: TextService (Roblox) + Sistema propio (normalización, Levenshtein, emojis).
--- Sin dependencia de ModerationManager. Solo devuelve válido/inválido.
+-- Optional Roblox delivery policy. Native TextChatService remains authoritative.
+-- Install ChatFilter, DeliveryGate and ContextPolicy as sibling server ModuleScripts.
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local DeliveryGate = require(script.Parent.DeliveryGate)
+local ContextPolicy = require(script.Parent.ContextPolicy)
 
 local ChatFilter = {}
-local Players = game:GetService("Players")
-local TextService = game:GetService("TextService")
+local REASONS = {
+    allow=true, invalid_identity=true, muted=true, scope=true, invalid_clock=true,
+    clock_regression=true, rate_limit=true, cache_capacity=true, text_unavailable=true,
+    invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true,
+    word=true, fuzzy=true, policy_error=true, stopped=true, channel_invalid=true,
+}
+local MAX_COUNT = 2^53 - 1
 
-local ChatConfig = require(script.Parent:WaitForChild("ChatConfig", 5))
-local ProfanityData = require(script.Parent:WaitForChild("ProfanityData", 5))
+function ChatFilter.new(options)
+    if options == nil then options = {} end
+    assert(type(options) == "table" and getmetatable(options) == nil, "options must be a plain table")
+    local known = {MessagesPerSecond=true, DecisionTTL=true, MaxCachedMessages=true, ScopeAttributes=true, LegacyText=true}
+    for key in pairs(options) do assert(known[key], "unknown ChatFilter option") end
+    assert(options.LegacyText == nil or type(options.LegacyText) == "boolean", "LegacyText must be boolean")
+    local gate = DeliveryGate.new({
+        MessagesPerSecond = options.MessagesPerSecond == nil and 3 or options.MessagesPerSecond,
+        DecisionTTL = options.DecisionTTL == nil and 10 or options.DecisionTTL,
+        MaxCachedMessages = options.MaxCachedMessages == nil and 64 or options.MaxCachedMessages,
+    })
+    local context = ContextPolicy.new(options)
+    local evaluate
+    if options.LegacyText == true then
+        local TextPolicy = require(script.Parent.TextPolicy)
+        local Data = require(script.Parent.ProfanityData)
+        local config = require(script.Parent.ChatConfiguration)
+        evaluate = TextPolicy.new(config, Data)
+    end
 
--- Estado privado (rate limiting)
-local peticionesPorJugador = {}
-
--- Normalización: traduce emojis, minúsculas, colapsa espacios, números a letras, elimina símbolos
-local function normalizar(texto)
-	local t = texto
-	for emoji, traduccion in pairs(ProfanityData.EMOJI_A_TEXTO) do
-		t = string.gsub(t, emoji, " " .. traduccion .. " ")
-	end
-	t = string.lower(t)
-	t = string.gsub(t, "%s+", " ")
-	t = string.gsub(t, "3", "e"); t = string.gsub(t, "4", "a")
-	t = string.gsub(t, "1", "i"); t = string.gsub(t, "0", "o")
-	t = string.gsub(t, "5", "s"); t = string.gsub(t, "7", "t")
-	t = string.gsub(t, "[^%a%s]", "")
-	return t
+    local active, warnedUnavailable = true, false
+    local counters, leaving = {}, setmetatable({}, {__mode="k"})
+    local removing = Players.PlayerRemoving:Connect(function(player)
+        leaving[player] = true
+        gate:Forget(player)
+    end)
+    local function record(reason)
+        counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
+    end
+    local function decide(message, recipient, channel, name)
+        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, "channel_invalid" end
+        if message.TextChannel ~= channel then return false, "invalid_identity" end
+        local source = message.TextSource
+        if not source or not recipient then return false, "invalid_identity" end
+        if source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true then
+            return false, "invalid_identity"
+        end
+        local sender = Players:GetPlayerByUserId(source.UserId)
+        local receiver = Players:GetPlayerByUserId(recipient.UserId)
+        if not sender or sender.Parent ~= Players or leaving[sender]
+            or not receiver or receiver.Parent ~= Players or leaving[receiver] then
+            return false, "invalid_identity"
+        end
+        -- Charge once per valid logical send even if a recipient fails the group rule.
+        -- Context is never cached: a mute or group change can still deny a cached admission.
+        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)
+        if not admitted then return false, admissionReason end
+        local permitted, reason = context(sender, receiver, name)
+        if not permitted then return false, reason end
+        if not evaluate then return true, "allow" end
+        local text = message.Text -- legacy only; never cache this verdict or content
+        if type(text) ~= "string" or text == "" then
+            if not warnedUnavailable then
+                warnedUnavailable = true
+                warn("[ChatFilter] Legacy text unavailable. Disable LegacyText.")
+            end
+            return false, "text_unavailable"
+        end
+        return evaluate(text)
+    end
+    -- One active callback generation per channel. A released callback never revives.
+    local bindings = setmetatable({}, {__mode="k"})
+    local controller = {}
+    function controller:ReleaseChannel(channel)
+        if channel == nil then return end
+        bindings[channel] = nil
+    end
+    function controller:ForChannel(channel)
+        assert(active, "controller destroyed")
+        assert(channel:IsA("TextChannel") and channel:IsDescendantOf(TextChatService), "expected live TextChannel")
+        local name = channel.Name
+        assert(#name > 0 and #name <= 128, "invalid channel name length")
+        assert(name:sub(1,3):upper() ~= "RBX", "reserved channel")
+        assert(not bindings[channel], "channel already bound; release before rebinding")
+        local token = {}
+        bindings[channel] = token
+        -- Does NOT assign or replace ShouldDeliverCallback. The sole owner does that.
+        return function(message, recipient)
+            if not active or bindings[channel] ~= token then record("stopped") return false end
+            local ok, allow, reason = pcall(decide, message, recipient, channel, name)
+            if not ok or type(allow) ~= "boolean" or not REASONS[reason]
+                or allow ~= (reason == "allow") then
+                record("policy_error")
+                return false
+            end
+            -- Observed detachment/rename invalidates this generation permanently.
+            -- Restoring the old name or parent must not silently resume delivery.
+            if reason == "channel_invalid" then bindings[channel] = nil end
+            record(reason)
+            return allow
+        end
+    end
+    function controller:GetCounts()
+        local copy = {}
+        for reason in pairs(REASONS) do copy[reason] = counters[reason] or 0 end
+        return copy
+    end
+    function controller:Destroy()
+        if not active then return end
+        active = false
+        removing:Disconnect()
+        for channel in pairs(bindings) do bindings[channel] = nil end
+        gate:Clear()
+    end
+    return controller
 end
-
--- Distancia de Levenshtein
-local function distanciaLevenshtein(s, t)
-	local s_len, t_len = #s, #t
-	if s_len == 0 then return t_len end
-	if t_len == 0 then return s_len end
-	local d = {}
-	for i = 0, s_len do d[i] = {[0] = i} end
-	for j = 0, t_len do d[0][j] = j end
-	for i = 1, s_len do
-		for j = 1, t_len do
-			local cost = s:sub(i,i) == t:sub(j,j) and 0 or 1
-			d[i][j] = math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost)
-		end
-	end
-	return d[s_len][t_len]
-end
-
--- Rate limiting
-local function esPeticionExcesiva(userId)
-	local now = os.clock()
-	peticionesPorJugador[userId] = peticionesPorJugador[userId] or {}
-	local timestamps = peticionesPorJugador[userId]
-	local i = 1
-	while timestamps[i] and (now - timestamps[i]) > 1.0 do
-		table.remove(timestamps, i)
-	end
-	if #timestamps >= ChatConfig.MAX_MENSAJES_POR_SEGUNDO then return true end
-	table.insert(timestamps, now)
-	return false
-end
-
--- Detecta el símbolo ~ como intento de simular gemidos
-local function contieneGemido(mensaje)
-	if string.find(mensaje, "~") then
-		return true
-	end
-	return false
-end
-
--- Verifica frases prohibidas en el mensaje normalizado
-local function contieneFraseProhibida(mensajeNormalizado)
-	for _, lista in pairs(ProfanityData.FRASES_PROHIBIDAS) do
-		for _, frase in ipairs(lista) do
-			if string.find(mensajeNormalizado, frase, 1, true) then
-				return true
-			end
-		end
-	end
-	return false
-end
-
--- Verifica si una palabra normalizada es un insulto
-local function esInsulto(palabraNormalizada)
-	local len = #palabraNormalizada
-
-	-- Verificar abreviaturas cortas ofensivas (sin límite de longitud)
-	for _, abrev in ipairs(ProfanityData.ABREVIATURAS_OFENSIVAS) do
-		if palabraNormalizada == abrev then
-			return true
-		end
-	end
-
-	-- Ignorar palabras de menos de 4 caracteres para evitar falsos positivos
-	if len < 4 then return false end
-	if len > ChatConfig.MAX_PALABRA_LENGTH then return false end
-
-	-- Lista blanca: palabras inocentes que NUNCA se bloquean
-	for _, inocente in ipairs(ProfanityData.PALABRAS_INOCENTES) do
-		if palabraNormalizada == inocente then
-			return false
-		end
-	end
-
-	-- Buscar en listas de insultos
-	for _, listaIdioma in pairs(ProfanityData.INSULTOS) do
-		for _, insulto in ipairs(listaIdioma) do
-			if palabraNormalizada == insulto then return true end
-			local diff = math.abs(len - #insulto)
-			if diff <= ChatConfig.LEVENSHTEIN_DIFF_MAX and
-				distanciaLevenshtein(palabraNormalizada, insulto) <= ChatConfig.LEVENSHTEIN_UMBRAL then
-				return true
-			end
-		end
-	end
-	return false
-end
-
--- ================================================================
--- API PÚBLICA (VERSIÓN LITE - Solo filtra, no sanciona)
--- ================================================================
-
-function ChatFilter.validarMensaje(player, mensaje)
-	-- Validaciones defensivas
-	if not player or not player.Parent then
-		return false, "Jugador inválido."
-	end
-	if type(mensaje) ~= "string" or #mensaje > ChatConfig.MAX_MENSAJE_LENGTH then
-		return false, "Mensaje no válido."
-	end
-
-	-- CAPA 1: Roblox (FilterStringAsync)
-	local exitoRoblox, resultadoRoblox = pcall(function()
-		return TextService:FilterStringAsync(mensaje, player.UserId)
-	end)
-
-	if exitoRoblox and resultadoRoblox then
-		local mensajeFiltradoRoblox = resultadoRoblox:GetNonChatStringForBroadcastAsync()
-		if mensajeFiltradoRoblox ~= mensaje then
-			-- Roblox detectó contenido inapropiado
-			print("[ChatFilter] CAPA 1 (Roblox): Mensaje bloqueado de " .. player.Name)
-			return false, "Tu mensaje fue bloqueado por el sistema de seguridad."
-		end
-	end
-	-- Si falla FilterStringAsync (error de red), dejamos pasar a la Capa 2
-
-	-- CAPA 2: Sistema propio (gemidos, rate limiting, insultos)
-	if contieneGemido(mensaje) then
-		print("[ChatFilter] CAPA 2: Gemido detectado de " .. player.Name)
-		return false, "Tu mensaje contiene símbolos no permitidos."
-	end
-
-	if esPeticionExcesiva(player.UserId) then
-		print("[ChatFilter] CAPA 2: Rate limiting activado para " .. player.Name)
-		return false, "Demasiados mensajes. Espera un momento."
-	end
-
-	if ChatFilter.contieneInsulto(mensaje) then
-		print("[ChatFilter] CAPA 2: Insulto detectado de " .. player.Name)
-		return false, "Tu mensaje contiene lenguaje inapropiado."
-	end
-
-	-- Si pasó ambas capas, el mensaje es válido
-	return true, mensaje
-end
-
-function ChatFilter.contieneInsulto(mensaje)
-	if type(mensaje) ~= "string" or #mensaje > ChatConfig.MAX_MENSAJE_LENGTH then return false end
-	if contieneGemido(mensaje) then return true end
-	local normalizado = normalizar(mensaje)
-	if contieneFraseProhibida(normalizado) then return true end
-	for palabra in string.gmatch(normalizado, "%S+") do
-		if esInsulto(palabra) then return true end
-	end
-	return false
-end
-
-Players.PlayerRemoving:Connect(function(player)
-	peticionesPorJugador[player.UserId] = nil
-end)
-
 return ChatFilter

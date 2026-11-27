@@ -1,9 +1,10 @@
-local ChatConfig = {}
-
-ChatConfig.MAX_PALABRA_LENGTH = 20
-ChatConfig.MAX_MENSAJE_LENGTH = 1000
-ChatConfig.MAX_MENSAJES_POR_SEGUNDO = 3
-ChatConfig.LEVENSHTEIN_UMBRAL = 2
-ChatConfig.LEVENSHTEIN_DIFF_MAX = 2
-
-return ChatConfig
+-- Optional lexical settings; also used by pure tests.
+return {
+    EnableFuzzy = false,
+    MaxMessageBytes = 512,
+    MaxTokens = 80,
+    MaxTokenBytes = 64,
+    MessagesPerSecond = 3,
+    DecisionTTL = 10,
+    MaxCachedMessages = 64,
+}

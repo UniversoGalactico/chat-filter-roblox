@@ -1,72 +1,52 @@
-# 🛡️ ChatFilter Lite – Free Multilingual Chat Moderation for Roblox
+# ChatFilter Lite
 
-A free, multilingual chat moderation system with **double‑layer filtering**, **Levenshtein evasion detection**, and **anti‑grooming tools**. Built for developers who want real control over their game's chat.
+Optional server-side delivery restrictions for Roblox's native TextChatService. No custom chat, GUI, RemoteEvent or chat logs. If you only want native chat, install nothing.
 
----
+## Start here
 
-## ✨ Why this exists
+Copy three ModuleScripts into ServerScriptService: [ChatFilter](server/ChatFilter.lua), [DeliveryGate](server/DeliveryGate.lua), [ContextPolicy](server/ContextPolicy.lua). In the sole server script owning your custom channel:
 
-In January 2026, I was scammed in a Roblox game. I lost 79 Robux. I submitted clear evidence to Roblox support and was ignored.  
+```lua
+local Filter = require(script.Parent.ChatFilter)
+local policy = Filter.new()
+channel.ShouldDeliverCallback = policy:ForChannel(channel)
+script.Destroying:Connect(function() policy:Destroy() end)
+```
 
-I could have held a grudge. Instead, I built a chat filter that catches what Roblox misses – and gave it away for free.  
+The default policy limits new messages with valid sender/channel/recipient identity to three per second per sender, across channels bound to one controller, even when group or mute rules withhold delivery. Server code may set ChatFilterMuted=true on a Player. To restrict your Match channel to matching server-owned MatchId attributes:
 
-I'm 16 years old. This is what I know how to do.
+```lua
+local policy = Filter.new({ScopeAttributes = {Match = "MatchId"}})
+```
 
----
+ForChannel returns a callback; it never installs one. Only one active callback per channel per controller is allowed. ReleaseChannel(channel) revokes it permanently before an explicit rebind; it does not edit the engine callback or reset the rate budget. A callback that observes a renamed/detached channel also revokes itself. Explicitly release before changing channel identity; restoring a name does not revive an observed invalid binding. If your channel has existing rules, combine them in the sole owning script rather than replacing them. All RBX-prefixed channels are rejected, including RBXGeneral; leave platform-owned channels alone. Destroy stops the policy; callbacks left installed deny, so restart the server to remove it.
 
-## 🚀 Features
+## Quick test
 
-- **Multilingual insult detection** (Spanish, English, Portuguese)  
-- **Levenshtein distance** – catches evasion attempts like `korer`, `hoder`, `m1erd4`  
-- **Emoji translation** – blocks sexual emojis like 🍆, 💦, 🥵  
-- **Rate limiting** – anti‑spam protection  
-- **White‑list for innocent words** – avoids false positives  
-- **~ detection** – blocks simulated moaning  
+[Import the Studio model](tests/studio/ChatFilterTest.rbxmx), [test instructions](tests/studio/README.md), [Spanish guide](docs/INSTALLATION.es.md). Studio has not yet been run.
 
----
+## Options
 
-## 📦 How to install (5 minutes)
+| Option | Default | Purpose |
+|---|---|---|
+| MessagesPerSecond | 3 | One-second sender limit |
+| DecisionTTL | 10 | Admission reuse in seconds |
+| MaxCachedMessages | 64 | Per-sender capacity |
+| ScopeAttributes | {} | Channel name to server attribute |
+| LegacyText | false | Transitional lexical check only |
 
-### Server
-1. Download all `.lua` files from the `server/` folder.  
-2. In Roblox Studio, place them inside **ServerScriptService/ServerModules**.  
-3. Place `ChatServer.lua` directly in **ServerScriptService**.
+GetCounts() returns a copy of aggregate per-callback counts, not evidence of receipt. Destroy() is idempotent.
 
-### Client
-1. Download `ChatClient.lua` from the `client/` folder.  
-2. Place it in **ReplicatedStorage/ClientModules**.  
-3. Create a **ScreenGui** in StarterGui and add a LocalScript that calls `ChatClient.Iniciar(gui)`.
+## Optional legacy text
 
-### Network
-1. Create a **RemoteEvent** named `ChatMessage` inside **ReplicatedStorage**.  
+Roblox plans mandatory platform-integrated chat in May 2027, removing script access to chat content, and announced native creator-defined blocked words. Never attempt to recover unavailable text. LegacyText=true is only for explicitly verified pre-integrated chat: install TextPolicy, ProfanityData and ChatConfiguration as additional siblings. Exact-only by default, fuzzy opt-in, no automatic punishment. Migrate to the official feature when documented.
 
-That's it. The system works automatically – no configuration needed.  
-*(Optional) Customize words and sensitivity by editing `ChatConfig.lua` and `ProfanityData.lua`.*
+The experimental one-way label pipeline and automatic binder are no longer shipped; [previous candidate](https://github.com/UniversoGalactico/chat-filter-roblox/tree/8e6e9bff949643f02305dd1864d1fb8963cff62b) retains the source in Git history.
 
----
+## Evidence and limits
 
-## 📁 Files
+[Verification](tests/README.md) · [Audit](docs/AUDIT.md) · [Security](SECURITY.md). Pure tests, mocks and compilation are not actual Studio validation or a safety/accuracy guarantee. Native Roblox permissions remain authoritative.
 
-| File | Type | Location | Purpose |
-|------|------|----------|---------|
-| `ChatConfig.lua` | ModuleScript | ServerModules | All configurable constants |
-| `ProfanityData.lua` | ModuleScript | ServerModules | Banned words, phrases, emojis, white‑list |
-| `ChatFilter.lua` | ModuleScript | ServerModules | Core filtering logic (normalization, Levenshtein) |
-| `ChatServer.lua` | Script | ServerScriptService | Receives messages, validates, broadcasts |
-| `ChatClient.lua` | ModuleScript | ClientModules | Chat GUI, sends messages to server |
+[Roblox chat rules](https://create.roblox.com/docs/chat/guidelines) · [Platform-integrated chat](https://create.roblox.com/docs/chat/platform-integrated-chat) · [TextChannel](https://create.roblox.com/docs/reference/engine/classes/TextChannel)
 
----
-
-## 📝 License
-
-MIT – do whatever you want, just keep the copyright notice.
-
----
-
-## 🌍 Languages
-
-The filter supports **Spanish, English, and Portuguese** by default. You can easily add more by editing `ProfanityData.lua`.
-
----
-
-If this project helped you, consider starring ⭐ the repo. It means a lot.
+MIT license.

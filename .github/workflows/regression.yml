@@ -1,0 +1,60 @@
+name: Policy regressions
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: chatfilter-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/gate_campaign.lua && lua5.4 tests/policy_examples.lua && lua5.4 tests/adapter.lua && lua5.4 tests/studio_mock.lua
+      - run: python3 tests/studio/verify_model.py
+      - run: python3 tests/internal_invariants.py /usr/bin/lua5.4
+      - name: Targeted mutation tests (temporary copies)
+        run: python3 tests/mutation.py
+      - name: Install checksum-pinned Luau 0.734
+        run: |
+          archive="$RUNNER_TEMP/luau-ubuntu.zip"
+          curl --fail --location --retry 3 https://github.com/luau-lang/luau/releases/download/0.734/luau-ubuntu.zip --output "$archive"
+          echo "3e514385267c6606f1ff6824bd9d21708a5dd272ea91ab7355a2743b20d45d45  $archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/luau"
+          unzip -q "$archive" -d "$RUNNER_TEMP/luau"
+          chmod +x "$RUNNER_TEMP/luau/luau"
+      - name: Compile every shipped Luau source
+        run: |
+          chmod +x "$RUNNER_TEMP/luau/luau-compile"
+          for file in server/*.lua tests/studio/*.lua; do
+            "$RUNNER_TEMP/luau/luau-compile" "$file" > /dev/null
+          done
+      - name: Run pure tests in Luau
+        run: |
+          "$RUNNER_TEMP/luau/luau" tests/regression.lua
+          "$RUNNER_TEMP/luau/luau" tests/gate_campaign.lua
+          "$RUNNER_TEMP/luau/luau" tests/policy_examples.lua
+      - name: Check internal admission invariants in Luau
+        run: python3 tests/internal_invariants.py "$RUNNER_TEMP/luau/luau"
+      - name: Run adapter and Studio doubles with native Luau
+        run: |
+          for opt in 0 1 2; do
+            python3 tests/native_adapter.py "$RUNNER_TEMP/luau/luau" --optimization "$opt"
+          done
+      - name: Compare baseline and current algorithms
+        run: |
+          mkdir -p tests/.baseline
+          git show e16a29463f934d230f0c753e085e3d6ff856e7c7:server/TextPolicy.lua > tests/.baseline/TextPolicy.lua
+          git show 8b912db1411288861f923bdeb2dc1549c14e5754:server/TextPolicy.lua > tests/.baseline/PreviousPolicy.lua
+          git show 1ed1569898263fc96b28f5d8c647eb44ffad6ccd:server/DeliveryGate.lua > tests/.baseline/DeliveryGate.lua
+          git show 8b7f9118c358f344719351ff10f301b28757aacc:server/DeliveryGate.lua > tests/.baseline/RecentGate.lua
+          "$RUNNER_TEMP/luau/luau" tests/benchmark.lua
