@@ -1,9 +1,9 @@
--- Optional supplemental delivery predicate; context mode never reads message text.
--- No RemoteEvent, no manual text forwarding, no custom rendering, no raw chat logs.
+-- Optional Roblox delivery policy. Native TextChatService remains authoritative.
+-- Install ChatFilter, DeliveryGate and ContextPolicy as sibling server ModuleScripts.
 local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
 local DeliveryGate = require(script.Parent.DeliveryGate)
 local ContextPolicy = require(script.Parent.ContextPolicy)
-local Config = require(script.Parent.ChatConfiguration)
 
 local ChatFilter = {}
 local REASONS = {
@@ -13,82 +13,93 @@ local REASONS = {
     word=true, fuzzy=true, policy_error=true, stopped=true,
 }
 local MAX_COUNT = 2^53 - 1
-function ChatFilter.CreatePredicate(mode)
-    assert(mode == "context" or mode == "legacy_text", "invalid delivery mode")
+
+function ChatFilter.new(options)
+    options = options or {}
+    assert(type(options) == "table" and getmetatable(options) == nil, "options must be a plain table")
+    assert(options.LegacyText == nil or type(options.LegacyText) == "boolean", "LegacyText must be boolean")
+    local gate = DeliveryGate.new({
+        MessagesPerSecond = options.MessagesPerSecond == nil and 3 or options.MessagesPerSecond,
+        DecisionTTL = options.DecisionTTL == nil and 10 or options.DecisionTTL,
+        MaxCachedMessages = options.MaxCachedMessages == nil and 64 or options.MaxCachedMessages,
+    })
+    local context = ContextPolicy.new(options)
     local evaluate
-    if mode == "legacy_text" then
+    if options.LegacyText == true then
         local TextPolicy = require(script.Parent.TextPolicy)
         local Data = require(script.Parent.ProfanityData)
-        evaluate = TextPolicy.new(Config, Data)
+        local config = require(script.Parent.ChatConfiguration)
+        evaluate = TextPolicy.new(config, Data)
     end
-    local gate = DeliveryGate.new(Config)
-    local context = ContextPolicy.new(Config)
-    local counters = {}
-    local function record(reason)
-        if not REASONS[reason] then reason = "policy_error" end
-        counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
-    end
-    local function snapshot()
-        local result = {}
-        for reason in pairs(REASONS) do result[reason] = counters[reason] or 0 end
-        return result
-    end
-    local leaving = setmetatable({}, { __mode = "k" })
+
+    local active, warnedUnavailable = true, false
+    local counters, leaving = {}, setmetatable({}, {__mode="k"})
     local removing = Players.PlayerRemoving:Connect(function(player)
         leaving[player] = true
         gate:Forget(player)
     end)
-    local active, warnedUnavailable = true, false
-    local function predicate(message, recipient, expectedChannel)
-        if not active then record("stopped") return false end
-        local ok, allow, reason = pcall(function()
-            local source = message.TextSource
-            local channel = message.TextChannel
-            if not source or not recipient or not channel
-                or (expectedChannel and channel ~= expectedChannel) then return false, "invalid_identity" end
-            -- Roblox creates TextSources directly under the channel. Reject detached
-            -- or foreign sources before resolving a possibly rejoined Player.
-            if source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true then
-                return false, "invalid_identity"
-            end
-            local sender = Players:GetPlayerByUserId(source.UserId)
-            local receiver = Players:GetPlayerByUserId(recipient.UserId)
-            if not sender or sender.Parent ~= Players or leaving[sender]
-                or not receiver or receiver.Parent ~= Players or leaving[receiver] then
-                return false, "invalid_identity"
-            end
-            local permitted, contextReason = context(sender, receiver, channel.Name)
-            if not permitted then return false, contextReason end
-            local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)
-            if not admitted then return false, admissionReason end
-            -- Content-independent mode must never even access the Text property.
-            if mode == "context" then return true, "allow" end
-            -- A platform message's Text may vary by recipient. Admission is shared;
-            -- each lexical verdict is independent and no text/hash is cached.
-            local text = message.Text
-            if type(text) ~= "string" or text == "" then
-                if not warnedUnavailable then
-                    warnedUnavailable = true
-                    warn("[ChatFilter] Legacy text unavailable; disable legacy_text mode in Studio. No attempt to recover content.")
-                end
-                return false, "text_unavailable"
-            end
-            return evaluate(text)
-        end)
-        if not ok or type(allow) ~= "boolean" or not REASONS[reason]
-            or (allow and reason ~= "allow") or (not allow and reason == "allow") then
-            record("policy_error")
-            return false
-        end
-        record(reason)
-        return allow
+    local function record(reason)
+        counters[reason] = math.min((counters[reason] or 0) + 1, MAX_COUNT)
     end
-    local function stop()
+    local function decide(message, recipient, channel, name)
+        if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then return false, "invalid_identity" end
+        if message.TextChannel ~= channel then return false, "invalid_identity" end
+        local source = message.TextSource
+        if not source or not recipient then return false, "invalid_identity" end
+        if source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true then
+            return false, "invalid_identity"
+        end
+        local sender = Players:GetPlayerByUserId(source.UserId)
+        local receiver = Players:GetPlayerByUserId(recipient.UserId)
+        if not sender or sender.Parent ~= Players or leaving[sender]
+            or not receiver or receiver.Parent ~= Players or leaving[receiver] then
+            return false, "invalid_identity"
+        end
+        local permitted, reason = context(sender, receiver, name)
+        if not permitted then return false, reason end
+        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)
+        if not admitted then return false, admissionReason end
+        if not evaluate then return true, "allow" end
+        local text = message.Text -- legacy only; never cache this verdict or content
+        if type(text) ~= "string" or text == "" then
+            if not warnedUnavailable then
+                warnedUnavailable = true
+                warn("[ChatFilter] Legacy text unavailable. Disable LegacyText.")
+            end
+            return false, "text_unavailable"
+        end
+        return evaluate(text)
+    end
+    local controller = {}
+    function controller:ForChannel(channel)
+        assert(active, "controller destroyed")
+        assert(channel:IsA("TextChannel") and channel:IsDescendantOf(TextChatService), "expected live TextChannel")
+        local name = channel.Name
+        assert(name == "RBXGeneral" or name:sub(1,3):upper() ~= "RBX", "reserved channel")
+        -- Does NOT assign or replace ShouldDeliverCallback. The sole owner does that.
+        return function(message, recipient)
+            if not active then record("stopped") return false end
+            local ok, allow, reason = pcall(decide, message, recipient, channel, name)
+            if not ok or type(allow) ~= "boolean" or not REASONS[reason]
+                or allow ~= (reason == "allow") then
+                record("policy_error")
+                return false
+            end
+            record(reason)
+            return allow
+        end
+    end
+    function controller:GetCounts()
+        local copy = {}
+        for reason in pairs(REASONS) do copy[reason] = counters[reason] or 0 end
+        return copy
+    end
+    function controller:Destroy()
         if not active then return end
         active = false
         removing:Disconnect()
         gate:Clear()
     end
-    return predicate, stop, snapshot
+    return controller
 end
 return ChatFilter
