@@ -19,6 +19,8 @@ Roblox requires player conversations to use TextChatService. Its platform-integr
 
 Sources: [chat guidelines](https://create.roblox.com/docs/chat/guidelines), [platform-integrated chat](https://create.roblox.com/docs/chat/platform-integrated-chat), [TextChannel callback](https://create.roblox.com/docs/reference/engine/classes/TextChannel).
 
+[Guía de instalación y validación en español](docs/INSTALLATION.es.md).
+
 ## Migration (required for v1 users)
 
 Delete the original ChatMessage RemoteEvent, legacy ChatServer and client GUI scripts in your experience. Remove any other code that forwards raw messages or disables the native chat interface. The two client files in this repository are inert migration stubs, not a replacement GUI. Keep Roblox reporting and mute/block controls available.

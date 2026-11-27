@@ -30,6 +30,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/luau"
           unzip -q "$archive" -d "$RUNNER_TEMP/luau"
           chmod +x "$RUNNER_TEMP/luau/luau"
+      - name: Compile every shipped Luau source
+        run: |
+          chmod +x "$RUNNER_TEMP/luau/luau-compile"
+          for file in server/*.lua client/*.lua; do
+            "$RUNNER_TEMP/luau/luau-compile" "$file" > /dev/null
+          done
       - name: Run pure tests in Luau
         run: |
           "$RUNNER_TEMP/luau/luau" tests/regression.lua
