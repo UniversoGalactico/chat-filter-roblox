@@ -9,6 +9,9 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["gate_recent_scope","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.id == messageId"],
+  ["gate_recent_id","DeliveryGate.lua","regression.lua","recent.scope == scope and recent.id == messageId","recent.scope == scope"],
+  ["gate_recent_expiry","DeliveryGate.lua","regression.lua","recent.id == messageId and recent.expires > now","recent.id == messageId"],
   ["adapter_released_callback","ChatFilter.lua","adapter.lua","if not active or bindings[channel] ~= token then record(\"stopped\") return false end","if not active then record(\"stopped\") return false end"],
   ["adapter_duplicate_binding","ChatFilter.lua","adapter.lua","assert(not bindings[channel], \"channel already bound; release before rebinding\")","assert(true)"],
   [

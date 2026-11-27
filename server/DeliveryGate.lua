@@ -44,9 +44,19 @@ function DeliveryGate.new(config)
         end
         if now < state.last then return false, "clock_regression" end
         state.last = now
+        -- Most per-recipient callbacks repeat the immediately preceding message.
+        -- This is only a shortcut to the same live cache entry, never a new decision.
+        local recent = state.recent
+        if recent and recent.scope == scope and recent.id == messageId and recent.expires > now then
+            return recent.allow, recent.reason
+        end
+        if recent and recent.expires <= now then state.recent = nil end
         local bucket = state.scopes[scope]
         local cached = bucket and bucket.ids[messageId]
-        if cached and cached.expires > now then return cached.allow, cached.reason end
+        if cached and cached.expires > now then
+            state.recent = cached
+            return cached.allow, cached.reason
+        end
         -- Equal TTL plus monotone time makes expiry FIFO.
         while state.count > 0 do
             local oldest = state.order[state.head]
@@ -80,6 +90,7 @@ function DeliveryGate.new(config)
         local decision = {scope=scope,id=messageId,expires=now+ttl,allow=allow,reason=reason}
         state.order[slot] = decision
         bucket.ids[messageId] = decision
+        state.recent = decision
         bucket.count = bucket.count + 1
         state.count = state.count + 1
         return allow, reason

@@ -47,4 +47,5 @@ jobs:
           git show e16a29463f934d230f0c753e085e3d6ff856e7c7:server/TextPolicy.lua > tests/.baseline/TextPolicy.lua
           git show 8b912db1411288861f923bdeb2dc1549c14e5754:server/TextPolicy.lua > tests/.baseline/PreviousPolicy.lua
           git show 1ed1569898263fc96b28f5d8c647eb44ffad6ccd:server/DeliveryGate.lua > tests/.baseline/DeliveryGate.lua
+          git show 8b7f9118c358f344719351ff10f301b28757aacc:server/DeliveryGate.lua > tests/.baseline/RecentGate.lua
           "$RUNNER_TEMP/luau/luau" tests/benchmark.lua
