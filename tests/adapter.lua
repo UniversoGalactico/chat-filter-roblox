@@ -65,6 +65,8 @@ assert(not allow(m,b), "legacy mode cannot evaluate unavailable text")
 assert(not allow(m,c) and warnings==1, "one static warning, independent denial")
 onRemoving(a)
 assert(not allow(m,b), "PlayerRemoving before Parent changes")
+assert(not allow({TextChannel=channel, TextSource={UserId=1},MessageId="after-removal",Text="hello"},b),
+    "departing sender with valid content and fresh admission must be denied")
 assert(not allow({TextChannel=channel, TextSource={UserId=2},MessageId="other",Text="hello"},a), "departing receiver")
 local rejoined = player(1)
 assert(allow({TextChannel=channel, TextSource={UserId=1},MessageId="four",Text="hello"},b), "new Player identity")

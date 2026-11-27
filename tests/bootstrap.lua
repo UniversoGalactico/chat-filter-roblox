@@ -79,6 +79,10 @@ local function scenario(mode, options)
         assert(not first(general,{}))
         general.Name="RBXGeneral"
         assert(first(general,{}))
+        general.Parent=nil
+        assert(not first(general,{}), "location must be checked even before the removal signal")
+        general.Parent=folder
+        assert(first(general,{}))
         service.DescendantRemoving:Fire(general)
         assert(not first(general,{}))
         general.Parent=nil
