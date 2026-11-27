@@ -33,7 +33,7 @@ function RemoteGuardServer.new(config: any): any
  local stats: {[string]: number}={InvalidPlayer=0,HandlerErrors=0,HandlerYields=0,StaleCompletions=0,Reaped=0}
  local function bump(key: string) stats[key]=math.min(MAX_COUNT,stats[key]+1) end
  local function validPlayer(player: any): boolean
-  return typeName(player)=="Instance" and player:IsA("Player") and player.Parent==Players
+  return typeName(player)=="Instance" and player:IsA("Player")==true and player.Parent==Players
    and not departed[player] and Players:GetPlayerByUserId(player.UserId)==player
  end
  local removing=Players.PlayerRemoving:Connect(function(player: Player)
