@@ -7,11 +7,26 @@ Re-run individual campaigns for independent confirmation.
 import hashlib,json,subprocess,tempfile
 from pathlib import Path
 root=Path(__file__).resolve().parents[1];e=root/'tests/evidence';sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
-core=sha(root/'RemoteGuardRoblox.lua');adapter=sha(root/'RemoteGuardServer.lua')
+# Preserve exact historical rc.2 hashes, accepting only the stable VERSION
+# declaration change. All other source bytes must match the recorded evidence.
+versions={
+ 'RemoteGuardRoblox.lua': b'local RemoteGuard = {VERSION = "1.0.0"}',
+ 'RemoteGuardServer.lua': b'local RemoteGuardServer = {VERSION="1.0.0"}',
+}
+def historical_bytes(p):
+ data=p.read_bytes()
+ declaration=versions.get(p.name)
+ if declaration is not None and p.parent==root:
+  old=declaration.replace(b'"1.0.0"',b'"1.0.0-rc.2"')
+  assert data.count(declaration)+data.count(old)==1
+  data=data.replace(declaration,old,1)
+ return data
+def historical_sha(p):return hashlib.sha256(historical_bytes(p)).hexdigest()
+core=historical_sha(root/'RemoteGuardRoblox.lua');adapter=historical_sha(root/'RemoteGuardServer.lua')
 def read(name):return json.loads((e/name).read_text())
 def patched(name):
  with tempfile.TemporaryDirectory() as d:
-  p=Path(d)/'source.lua';p.write_bytes((root/'RemoteGuardRoblox.lua').read_bytes())
+  p=Path(d)/'source.lua';p.write_bytes(historical_bytes(root/'RemoteGuardRoblox.lua'))
   subprocess.run(['patch','--batch','--silent',str(p),str(e/name)],check=True)
   return sha(p)
 num=0
@@ -34,7 +49,7 @@ mut=read('mutations.json');assert mut['core_sha256']==core and mut['adapter_sha2
 assert mut['total']==mut['detected']==39 and all(m['detected'] for m in mut['mutants'])
 resource=read('resource_audit.json');assert resource['source_sha256']==core and resource['campaign_sha256']==sha(root/'tests/resource_audit.py') and resource['model_sha256']==sha(root/'tests/model.luau')
 assert len(resource['results'])==6 and all(x['passed'] for x in resource['results'])
-extended=read('extended_models.json');assert all(sha(root/f)==h for f,h in extended['sha256'].items())
+extended=read('extended_models.json');assert all(historical_sha(root/f)==h for f,h in extended['sha256'].items())
 assert len(extended['runs'])==6
 for run in extended['runs']:
  if run['runner']=='run.py':
