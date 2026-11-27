@@ -20,6 +20,10 @@ local function isSeparator(cp)
         or (cp >= 123 and cp <= 126) or cp == 0xA0 or cp == 0x1680
         or (cp >= 0x2000 and cp <= 0x200A) or (cp >= 0x2010 and cp <= 0x2029)
         or cp == 0x202F or cp == 0x205F or cp == 0x3000
+        -- Selected punctuation and emoji are word boundaries, not blocked content.
+        or cp == 0xA1 or cp == 0xBF or cp == 0xAB or cp == 0xBB or cp == 0xB7
+        or cp == 0x3001 or cp == 0x3002 or (cp >= 0x3008 and cp <= 0x3011)
+        or (cp >= 0x2600 and cp <= 0x27BF) or (cp >= 0x1F000 and cp <= 0x1FAFF)
 end
 local leet = { ["0"]="o", ["1"]="i", ["3"]="e", ["4"]="a", ["5"]="s", ["7"]="t" }
 

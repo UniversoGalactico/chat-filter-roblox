@@ -265,6 +265,14 @@ expect(unicodeSynthetic("ａｂｃｄｅｆ"),false,"fullwidth lowercase")
 expect(unicodeSynthetic("Ábçdéf"),false,"accent folding")
 expect(unicodeSynthetic("école"),true,"unrelated accented word")
 expect(unicodeSynthetic("日本語"),true,"unrelated script")
+for _,cp in ipairs({0xA1,0xBF,0xAB,0xBB,0xB7,0x3001,0x3002,0x3008,0x3011,0x2600,0x27BF,0x1F600,0x1F9EA}) do
+    local boundary=utf8.char(cp)
+    expect(unicodeSynthetic(boundary.."abcdef"..boundary),false,"selected punctuation boundary")
+    expect(unicodeSynthetic("hello"..boundary.."world"),true,"punctuation alone not blocked")
+end
+expect(unicodeSynthetic("🐱"),true,"emoji alone permitted")
+expect(unicodeSynthetic("¿hola? ¡bien!"),true,"benign Spanish punctuation")
+expect(unicodeSynthetic("alpha🐱beta"),false,"emoji separates phrase tokens")
 expect(unicodeSynthetic("a"..utf8.char(0x200D).."bcdef"),false,"selected format control")
 -- Independent scan-based model; compare every result and reason with the FIFO.
 local function reference(state, id, now, limit, ttl, capacity)

@@ -9,6 +9,7 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["lexical_spanish_punctuation","TextPolicy.lua","regression.lua","or cp == 0xA1 or cp == 0xBF or cp == 0xAB or cp == 0xBB or cp == 0xB7","or false"],
   ["adapter_sender_membership","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","recipient.Parent ~= channel or source.CanSend ~= true"],
   ["adapter_recipient_membership","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","source.Parent ~= channel or source.CanSend ~= true"],
   ["adapter_readonly_sender","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","source.Parent ~= channel or recipient.Parent ~= channel"],
