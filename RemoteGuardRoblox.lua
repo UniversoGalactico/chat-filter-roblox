@@ -21,13 +21,13 @@ local function integer(n: any): boolean
 end
 local function fields(t: any, allowed: {[string]: boolean})
 	assert(type(t)=="table" and getmetatable(t)==nil,"INVALID_CONFIG_TABLE")
-	for k in next,t do assert(allowed[k]==true,"UNKNOWN_CONFIG_FIELD") end
+	for k in next,t do assert(type(k)=="string" and allowed[k]==true,"UNKNOWN_CONFIG_FIELD") end
 end
 local function array(t: any, maximum: number): number
 	assert(type(t)=="table" and getmetatable(t)==nil,"INVALID_ARRAY")
 	local count=0
 	for k in next,t do
-		assert(integer(k) and k>=1 and k<=maximum,"INVALID_ARRAY_INDEX")
+		assert(type(k)=="number" and integer(k) and k>=1 and k<=maximum,"INVALID_ARRAY_INDEX")
 		count+=1
 	end
 	for i=1,count do assert(rawget(t,i)~=nil,"SPARSE_ARRAY") end
