@@ -10,7 +10,6 @@ local Config=require(script.Parent.ChatConfiguration)
 local Data=require(script.Parent.ProfanityData)
 local map=MemoryStoreService:GetHashMap("ChatFilter_PublicFieldCooldown_v1")
 local leaving=setmetatable({}, {__mode="k"})
-Players.PlayerRemoving:Connect(function(player) leaving[player]=true end)
 local function identity(player)
     if typeof(player)~="Instance" or not player:IsA("Player")
         or player.Parent~=Players or leaving[player] or Players:GetPlayerByUserId(player.UserId)~=player then
@@ -35,10 +34,25 @@ local filter=Pipeline.new({
     beginFilter=function(raw,id) return TextService:FilterStringAsync(raw,id) end,
     broadcast=function(result) return result:GetNonChatStringForBroadcastAsync() end,
 },16,TextPolicy.new(Config,Data))
+Players.PlayerRemoving:Connect(function(player) leaving[player]=true end)
+
 local PublicFieldService={}
-function PublicFieldService.FilterAsync(player,raw)
-    -- Caller authorizes the field before this call and revalidates after it.
-    -- Never display raw text if the filtered result is nil.
-    return filter(player,raw)
+function PublicFieldService.Request(player,raw,onResult)
+    -- Trusted server callback only. Never accept a callback or object authority from a client.
+    if type(onResult)~="function" then return false,"invalid_callback" end
+    if type(raw)~="string" or #raw==0 or #raw>128 then return false,"invalid_text" end
+    if not identity(player) then return false,"invalid_player" end
+    -- Own the worker rather than yielding in the requester's coroutine. Cancellation
+    -- of a UI/controller waiter cannot strand the pipeline's in-flight reservation.
+    -- The thread handle is intentionally not returned to the caller.
+    local scheduled=pcall(task.spawn,function()
+        local ok,value,reason=pcall(filter,player,raw)
+        if not ok then value,reason=nil,"service_error" end
+        -- The pipeline releases its reservation before invoking trusted caller code.
+        -- Do not retain or print callback errors; they may contain sensitive text.
+        pcall(onResult,value,reason)
+    end)
+    if not scheduled then return false,"schedule_error" end
+    return true,"scheduled"
 end
 return PublicFieldService

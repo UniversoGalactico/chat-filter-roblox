@@ -113,4 +113,19 @@ time=300
 check(f1,player(13),"name","Filtered label","allow")
 expect(pcall(Pipeline.new,deps,0),false,"invalid concurrency")
 expect(pcall(Pipeline.new,{now=deps.now},1),false,"missing dependency")
+-- Probe malformed byte strings without invoking any service: validation may reject
+-- or the supplemental policy may deny, but the API must not throw.
+local noService=Pipeline.new(deps,1,function()return false end)
+local rng=13
+time=500
+for i=1,1000 do
+    local bytes={}
+    for j=1,1+i%32 do
+        rng=(rng*48271)%2147483647
+        bytes[j]=string.char(rng%256)
+    end
+    local ok,value=pcall(noService,player(1000+i),table.concat(bytes))
+    expect(ok,true,"malformed input no throw")
+    expect(value,nil,"no unfiltered output")
+end
 print("PASS: "..assertions.." public field assertions")

@@ -11,6 +11,6 @@ Studio / live experience checklist (not yet executed):
 
 ## Optional public fields
 
-Run `lua5.4 tests/public_fields.lua`, `lua5.4 tests/public_field_adapter.lua` and `luau tests/public_fields.lua`. These simulate asynchronous races, failures, stale results and MemoryStore transform contention; they do not call Roblox services.
+Run `lua5.4 tests/public_fields.lua`, `lua5.4 tests/public_field_adapter.lua` and `luau tests/public_fields.lua`. These simulate asynchronous races, requester cancellation, callback failures, stale results and MemoryStore transform contention; they do not call Roblox services.
 
 In a private published test universe, verify the cooldown across servers/places, concurrent attempts, server changes, real TextService failure behavior, and authorization of the exact object before and after the async call. Confirm that only the official broadcast-filtered label is visible, that all surfaces share the cooldown, and that no replies or messaging are possible. Do not deploy until verified.
