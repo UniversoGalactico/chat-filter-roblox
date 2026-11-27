@@ -1,0 +1,45 @@
+{
+  "source_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
+  "campaign_sha256": "9f671c16bbd60a30f6f3f92d624d5f8dc32a7e3ef5cc7439a736f49702b596b9",
+  "vm_sha256": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+  "seed": 38101,
+  "schemas": 512,
+  "cases_per_schema": 100,
+  "root_types": {
+    "array": 68,
+    "boolean": 76,
+    "number": 75,
+    "map": 79,
+    "string": 68,
+    "buffer": 73,
+    "record": 73
+  },
+  "runs": [
+    {
+      "optimization": 0,
+      "cases": 51200,
+      "expected_allowed": 18011,
+      "expected_denied": 33189,
+      "differences": 0,
+      "witnesses": []
+    },
+    {
+      "optimization": 1,
+      "cases": 51200,
+      "expected_allowed": 18011,
+      "expected_denied": 33189,
+      "differences": 0,
+      "witnesses": []
+    },
+    {
+      "optimization": 2,
+      "cases": 51200,
+      "expected_allowed": 18011,
+      "expected_denied": 33189,
+      "differences": 0,
+      "witnesses": []
+    }
+  ],
+  "elapsed_seconds": 3.598157505999552,
+  "scope": "finite generated schemas and payloads against independent Python interpreter; no engine type simulation"
+}

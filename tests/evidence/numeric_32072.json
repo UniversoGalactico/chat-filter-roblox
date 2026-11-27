@@ -1,0 +1,167 @@
+{
+  "source_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
+  "campaign_sha256": "cbd2c203c32f48576ac3611c7fa043703cd37a291217934a0e8d7fe9af30a16e",
+  "tool_pins": {
+    "numeric_fuzz320.py": "5d4cf91db579d2097cac2d13b9a77bef0bbad54878a47ad493a5d502d6f3e4b0",
+    "binary64_320.py": "8995a1949fcc910986bcfe38a9b9c406410db3c25929c45233f1a250a6fe8253",
+    "runtime/linux/luau": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+    "vm_binary64_320.py": "ba264eb5b102209ab0dbacc7c189a8fcd1536f08ed0805d1f88b4647be370af6"
+  },
+  "seed": 32072,
+  "boundary_cases": 24000,
+  "rounded_early_boundary_witnesses": 4666,
+  "runs": [
+    {
+      "optimization": 0,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13681,
+          "differences": 0
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": []
+    },
+    {
+      "optimization": 1,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13681,
+          "differences": 0
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": []
+    },
+    {
+      "optimization": 2,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13681,
+          "differences": 0
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": []
+    }
+  ],
+  "elapsed_seconds": 7.655977013999291,
+  "scope": "finite arithmetic, integer/number/UTF8 acceptance, exact represented quota expiry and sweep; bundled Luau CLI only, not formal or Roblox verification"
+}

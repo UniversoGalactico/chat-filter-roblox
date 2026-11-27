@@ -1,0 +1,331 @@
+{
+  "source_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
+  "baseline_sha256": "6f6c53a9233a64deb42aad66259a11ca52346a614201e94c2ee1d4d5d4a9fc6f",
+  "vm_sha256": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+  "campaign_sha256": "ece8f0e60ea5f8c3b8622d80ee1442a933f6309b560f5d9377ddb9965a36bc6f",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "rows": [
+    {
+      "mode": "primitive",
+      "version": "before",
+      "trial": 0,
+      "seconds": 0.530923336998967,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "after",
+      "trial": 0,
+      "seconds": 0.5060280910001893,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "after",
+      "trial": 1,
+      "seconds": 0.4896705020000809,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "before",
+      "trial": 1,
+      "seconds": 0.5309688769993954,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "before",
+      "trial": 2,
+      "seconds": 0.5411429160012631,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "after",
+      "trial": 2,
+      "seconds": 0.5457133809995867,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "after",
+      "trial": 3,
+      "seconds": 0.5239568810011406,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "before",
+      "trial": 3,
+      "seconds": 0.6560433319991716,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "before",
+      "trial": 4,
+      "seconds": 0.5681585830006952,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "primitive",
+      "version": "after",
+      "trial": 4,
+      "seconds": 0.5026548089990683,
+      "units": 400000,
+      "checksum": 400000
+    },
+    {
+      "mode": "nested",
+      "version": "before",
+      "trial": 0,
+      "seconds": 0.4179188889993384,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "after",
+      "trial": 0,
+      "seconds": 0.4399379000005865,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "after",
+      "trial": 1,
+      "seconds": 0.46648995600116905,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "before",
+      "trial": 1,
+      "seconds": 0.41608292700038874,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "before",
+      "trial": 2,
+      "seconds": 0.40694290999999794,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "after",
+      "trial": 2,
+      "seconds": 0.405737107999812,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "after",
+      "trial": 3,
+      "seconds": 0.42736078099915176,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "before",
+      "trial": 3,
+      "seconds": 0.3856851029995596,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "before",
+      "trial": 4,
+      "seconds": 0.4061842000010074,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "nested",
+      "version": "after",
+      "trial": 4,
+      "seconds": 0.4045084429999406,
+      "units": 150000,
+      "checksum": 150000
+    },
+    {
+      "mode": "burst_full",
+      "version": "before",
+      "trial": 0,
+      "seconds": 0.05567821800650563,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "after",
+      "trial": 0,
+      "seconds": 0.00011951301348744892,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "after",
+      "trial": 1,
+      "seconds": 0.00012277600944798905,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "before",
+      "trial": 1,
+      "seconds": 0.053153513006691355,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "before",
+      "trial": 2,
+      "seconds": 0.054167102001883904,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "after",
+      "trial": 2,
+      "seconds": 0.0001533290014776867,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "after",
+      "trial": 3,
+      "seconds": 0.00013684300211025402,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "before",
+      "trial": 3,
+      "seconds": 0.05236246900494734,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "before",
+      "trial": 4,
+      "seconds": 0.05419698701007292,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_full",
+      "version": "after",
+      "trial": 4,
+      "seconds": 0.00013018798927078024,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "before",
+      "trial": 0,
+      "seconds": 0.028163378994577215,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "after",
+      "trial": 0,
+      "seconds": 0.0003549249940988375,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "after",
+      "trial": 1,
+      "seconds": 0.0003107349948550109,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "before",
+      "trial": 1,
+      "seconds": 0.029096669000864495,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "before",
+      "trial": 2,
+      "seconds": 0.027960477988017374,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "after",
+      "trial": 2,
+      "seconds": 0.00030739099929633085,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "after",
+      "trial": 3,
+      "seconds": 0.0003144129896099912,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "before",
+      "trial": 3,
+      "seconds": 0.0267854910071037,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "before",
+      "trial": 4,
+      "seconds": 0.027729675986847724,
+      "units": 80,
+      "checksum": 80
+    },
+    {
+      "mode": "burst_partial",
+      "version": "after",
+      "trial": 4,
+      "seconds": 0.000330335991748143,
+      "units": 80,
+      "checksum": 80
+    }
+  ],
+  "elapsed_seconds": 36.74836156799938,
+  "scope": "five alternating local Luau O2 trials, injected clock; burst measurement isolates first admission after expiration; no network, Roblox engine or server capacity claim"
+}

@@ -1,0 +1,50 @@
+{
+  "source_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
+  "campaign_sha256": "cbee285efd6cc8368e670884e52597d0ce30032ad59e87d417c847e4449698fe",
+  "model_sha256": "908d33b793076c3b1fcd53ecfabc1b650fc93828f046044aa62d1b7260c28422",
+  "vm_sha256": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+  "compiler_sha256": "c39103ed7650c1459b40d218d86c19b1ba2da5136fce52b5c2725fc61a46bc91",
+  "results": [
+    {
+      "case": "unmodified",
+      "passed": true,
+      "witness": "",
+      "results": [
+        "PASS MODEL\t512000",
+        "PASS RESOURCE\t12800\t660"
+      ]
+    },
+    {
+      "case": "retired_history_retained",
+      "passed": true,
+      "witness": "/tmp/tmprpq17s_i/audit.luau:461: audit: retired quota history",
+      "results": []
+    },
+    {
+      "case": "release_map_leak",
+      "passed": true,
+      "witness": "/tmp/tmprpq17s_i/audit.luau:464: audit: shared permit count",
+      "results": []
+    },
+    {
+      "case": "ring_extra_slot",
+      "passed": true,
+      "witness": "/tmp/tmprpq17s_i/audit.luau:436: audit: ring slot",
+      "results": []
+    },
+    {
+      "case": "unmarked_retirement",
+      "passed": true,
+      "witness": "/tmp/tmprpq17s_i/audit.luau:460: audit: retirement generation",
+      "results": []
+    },
+    {
+      "case": "counter_overflow",
+      "passed": true,
+      "witness": "/tmp/tmprpq17s_i/audit.luau:477: audit: counter range",
+      "results": []
+    }
+  ],
+  "elapsed_seconds": 13.078269802999785,
+  "scope": "private invariant instrumentation in temporary copies only, full 512k model plus retirement/capacity stress and five deliberate negative controls; entry counts not actual Roblox memory measurements"
+}

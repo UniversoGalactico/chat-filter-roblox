@@ -1,0 +1,247 @@
+{
+  "core_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
+  "adapter_sha256": "6d05700a1eec70a3629c4f3505b8b326513232c5593e654a16cc30ef9b1c0e5c",
+  "campaign_sha256": "962460f2287b4026cd33d4dd73191bd5003458824ca0a61d8dedd6c3104f1e3a",
+  "compiler_sha256": "c39103ed7650c1459b40d218d86c19b1ba2da5136fce52b5c2725fc61a46bc91",
+  "vm_sha256": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+  "mutants": [
+    {
+      "name": "rounded_early_expiry",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmp26oy6lq7/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ring_drop_extra",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpuct9ewx1/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ring_bad_head",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmphgylusm0/test.luau:63: attempt to perform arithmetic (sub) on number and nil"
+    },
+    {
+      "name": "ring_retains_expired",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpjhvttcbb/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_server_quota",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpyc3wvsxq/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_subject_charge",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmplq6eyj3a/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_action_charge",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmp5mcp409c/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ignore_arity",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpvl5vz3bx/test.luau:436: true ~= false"
+    },
+    {
+      "name": "accept_nonfinite",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpe3qr53gn/test.luau:436: true ~= false"
+    },
+    {
+      "name": "accept_invalid_utf8",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpa0s9mqxl/test.luau:436: true ~= false"
+    },
+    {
+      "name": "accept_sparse_array",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpia5rgcii/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ignore_extra_record_fields",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpx1tifp5w/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ignore_node_budget",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpkxpp9sgk/test.luau:436: true ~= false"
+    },
+    {
+      "name": "ignore_string_byte_budget",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmphl_w540m/test.luau:436: true ~= false"
+    },
+    {
+      "name": "alias_choices",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpm6xby4ou/test.luau:436: false ~= true"
+    },
+    {
+      "name": "sweep_short_window",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpme79ftin/test.luau:436: 2 ~= 0"
+    },
+    {
+      "name": "sweep_active",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpb9xy84p0/test.luau:436: 1 ~= 0"
+    },
+    {
+      "name": "forget_frees_flight",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpzpbkpk98/test.luau:436: 0 ~= 1"
+    },
+    {
+      "name": "stale_lease_current",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpqlicpgvp/test.luau:436: true ~= false"
+    },
+    {
+      "name": "check_bypasses_permit",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpfdpsycus/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_permit_counters",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpm_r0af8_/test.luau:436: table: 0x00005569916a1a50 ~= nil"
+    },
+    {
+      "name": "truthy_authorization",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpf_43r1xi/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_server_flight_limit",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpca10z8y7/test.luau:436: table: 0x0000560108b83750 ~= nil"
+    },
+    {
+      "name": "no_subject_flight_limit",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpxemj2irw/test.luau:436: table: 0x000055df08340440 ~= nil"
+    },
+    {
+      "name": "no_action_flight_limit",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpvekqj3q7/test.luau:436: table: 0x0000557414e1baa0 ~= nil"
+    },
+    {
+      "name": "no_buffer_bound",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpk2xq61lm/test.luau:436: true ~= false"
+    },
+    {
+      "name": "no_map_key_validation",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmpham4vqpr/test.luau:436: true ~= false"
+    },
+    {
+      "name": "reset_shared_quota_on_forget",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmp0669yfjv/test.luau:436: true ~= false"
+    },
+    {
+      "name": "stats_alias",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmppgk6bc44/test.luau:436: 0 ~= 2"
+    },
+    {
+      "name": "clock_regression_ignored",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmptkiaew0t/test.luau:436: true ~= false"
+    },
+    {
+      "name": "schema_budget_ignored",
+      "module": "core",
+      "detected": true,
+      "witness": "/tmp/tmp5d3ivq6d/test.luau:436: true ~= false"
+    },
+    {
+      "name": "adapter_identity_skipped",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmp168e9j3n/test.luau:590: 2 ~= 3"
+    },
+    {
+      "name": "adapter_departed_skipped",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmptd3wogcx/test.luau:590: true ~= false"
+    },
+    {
+      "name": "adapter_stale_result_allowed",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmp_iltx3h4/test.luau:590: true ~= false"
+    },
+    {
+      "name": "adapter_lease_leak",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmpenwv3fe0/test.luau:589: 1 ~= 0"
+    },
+    {
+      "name": "adapter_reap_suspended",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmp6rq02b39/test.luau:590: 1 ~= 0"
+    },
+    {
+      "name": "adapter_raw_error",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmp8ad_7nk_/test.luau:590: /tmp/tmp8ad_7nk_/test.luau:640: secret ~= HANDLER_ERROR"
+    },
+    {
+      "name": "adapter_disconnect_leak",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmplrjw99qi/test.luau:590: 1 ~= 0"
+    },
+    {
+      "name": "adapter_drop_extra_args",
+      "module": "adapter",
+      "detected": true,
+      "witness": "/tmp/tmpshv33npt/test.luau:590: true ~= false"
+    }
+  ],
+  "detected": 39,
+  "total": 39,
+  "elapsed_seconds": 36.80717390399877,
+  "scope": "selected deliberately changed semantic operations; compiled every mutant; no syntax failure or timeout counted; not a universal mutation score"
+}
