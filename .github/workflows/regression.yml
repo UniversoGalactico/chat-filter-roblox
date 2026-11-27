@@ -41,6 +41,11 @@ jobs:
         run: |
           "$RUNNER_TEMP/luau/luau" tests/regression.lua
           "$RUNNER_TEMP/luau/luau" tests/policy_examples.lua
+      - name: Run adapter and Studio doubles with native Luau
+        run: |
+          for opt in 0 1 2; do
+            python3 tests/native_adapter.py "$RUNNER_TEMP/luau/luau" --optimization "$opt"
+          done
       - name: Compare baseline and current algorithms
         run: |
           mkdir -p tests/.baseline

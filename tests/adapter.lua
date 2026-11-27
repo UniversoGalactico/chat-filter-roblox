@@ -186,4 +186,39 @@ assert(not checkBudget({TextChannel=match,TextSource=sa,MessageId="after-mute"},
 now=22
 assert(checkBudget({TextChannel=match,TextSource=sa,MessageId="new-window"},sb))
 budget:Destroy()
+-- Exhaustive combinations of 10 independent boolean preconditions.
+-- Every case starts with a fresh logical ID and a separated clock window.
+local combinatorial=Filter.new({ScopeAttributes={Match="MatchId"},MessagesPerSecond=1,DecisionTTL=1,MaxCachedMessages=8})
+local decideCase=combinatorial:ForChannel(match)
+local trials=0
+for mask=0,1023 do
+    local function bit(index) return math.floor(mask/2^index)%2==1 end
+    -- 0: source exists; 1: receiver exists; 2: sender membership;
+    -- 3: recipient membership; 4: send permission; 5: sender current;
+    -- 6: receiver current; 7: same group; 8: unmuted; 9: correct channel.
+    sa.Parent=bit(2) and match or other
+    sb.Parent=bit(3) and match or other
+    sa.CanSend=bit(4)
+    rejoined.Parent=bit(5) and players or nil
+    b.Parent=bit(6) and players or nil
+    rejoined.group="A"
+    b.group=bit(7) and "A" or "B"
+    rejoined.muted=not bit(8)
+    now=100+mask*2
+    local candidate={
+        TextChannel=bit(9) and match or other,
+        TextSource=bit(0) and sa or nil,
+        MessageId="combination-"..mask,
+    }
+    local recipient=bit(1) and sb or nil
+    local expected=mask==1023
+    assert(decideCase(candidate,recipient)==expected,"precondition combination "..mask)
+    trials=trials+1
+end
+combinatorial:Destroy()
+sa.Parent,sb.Parent=match,match
+sa.CanSend=true
+rejoined.Parent,b.Parent=players,players
+rejoined.muted=false
+print("PASS: "..trials.." exhaustive adapter precondition combinations")
 print("PASS: explicit channel ownership, recipient variants, lifecycle, shared quotas and context isolation")
