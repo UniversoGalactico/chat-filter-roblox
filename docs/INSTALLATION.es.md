@@ -12,6 +12,8 @@
 
 Roblox anunció la obligatoriedad del chat integrado de plataforma en mayo de 2027. Sus scripts no podrán leer el texto de mensajes integrado. No intentes recuperar ese texto mediante RemoteEvents, GUI personalizada u otros transportes.
 
+El [anuncio de octubre de 2026](https://devforum.roblox.com/t/important-textchatservice-updates-how-to-test-and-what%E2%80%99s-next/4948433) también prevé listas de palabras bloqueadas por creadores mediante el filtro nativo para mayo de 2027. Es una función anunciada, no una API confirmada. Migra la lista léxica a la opción oficial cuando esté documentada, revisando falsos positivos; no hace falta reconstruir un transporte de chat.
+
 ## Migración desde v1
 
 Trabaja primero en una copia privada del juego. Elimina los scripts originales ChatServer, ChatClient, InitChatClient y el RemoteEvent ChatMessage, además de cualquier otra interfaz de chat que reenvíe texto. Conserva los controles nativos de bloqueo, silencio y denuncia.

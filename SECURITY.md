@@ -29,7 +29,7 @@ The caller still owns authorization, stale target revision checks, persistence/d
 
 This is not a comprehensive anti-grooming system, abuse classifier, complete Unicode normalization library, or guarantee against evasion or false positives. Lexical matches do not justify automatic punishment. The sender may see a local echo even if recipients do not receive a message. A rule only covers the configured channels. Native chat is always required, including for channels not covered by ChatFilter.
 
-Platform-integrated chat removes access to player message content. Never attempt to recover or circumvent this restriction. Context mode requires validation against the actual engine and rollout configuration; default to native mode when uncertain.
+Platform-integrated chat removes access to player message content. Never attempt to recover or circumvent this restriction. Context mode requires validation against the actual engine and rollout configuration; default to native mode when uncertain. Roblox has announced a native creator-defined blocked-word feature planned by May 2027; no undocumented endpoint or API is used here.
 
 ## Reporting a vulnerability
 

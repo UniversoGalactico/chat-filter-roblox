@@ -17,7 +17,9 @@ Roblox requires player conversations to use TextChatService. Its platform-integr
 - **legacy_text (transitional):** pre-platform-integrated TextChatService only; adds supplemental lexical rules. The native platform still owns filtering and recipient permissions.
 - **Not supported:** interception of integrated chat content, custom chat transport, raw chat logs, report paywalls, comprehensive grooming detection, or claims that every abusive message is detected.
 
-Sources: [chat guidelines](https://create.roblox.com/docs/chat/guidelines), [platform-integrated chat](https://create.roblox.com/docs/chat/platform-integrated-chat), [TextChannel callback](https://create.roblox.com/docs/reference/engine/classes/TextChannel).
+Roblox's October 22, 2026 roadmap update also announced native creator-defined blocked words on top of its filter, planned by May 2027. The announcement says channel membership, sender identity, delivery status, timestamps and message IDs are preserved. This is a roadmap, not a guarantee of any unpublished API. Treat the lexical list as a transitional policy and review it for native migration when Roblox documents the feature; this repository does not implement an unofficial integration.
+
+Sources: [October 2026 announcement](https://devforum.roblox.com/t/important-textchatservice-updates-how-to-test-and-what%E2%80%99s-next/4948433), [chat guidelines](https://create.roblox.com/docs/chat/guidelines), [platform-integrated chat](https://create.roblox.com/docs/chat/platform-integrated-chat), [TextChannel callback](https://create.roblox.com/docs/reference/engine/classes/TextChannel).
 
 [Guía de instalación y validación en español](docs/INSTALLATION.es.md).
 
