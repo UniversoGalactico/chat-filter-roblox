@@ -1,13 +1,15 @@
 -- Run from repository root: lua5.4 tests/regression.lua
-local Policy, Gate, config, data
+local Policy, Gate, Context, config, data
 if type(dofile) == "function" then
     Policy = dofile("server/TextPolicy.lua")
     Gate = dofile("server/DeliveryGate.lua")
+    Context = dofile("server/ContextPolicy.lua")
     config = dofile("server/ChatConfiguration.lua")
     data = dofile("server/ProfanityData.lua")
 else
     Policy = require("../server/TextPolicy")
     Gate = require("../server/DeliveryGate")
+    Context = require("../server/ContextPolicy")
     config = require("../server/ChatConfiguration")
     data = require("../server/ProfanityData")
 end
@@ -50,6 +52,30 @@ expect(fuzzy("pelotudoz"), false, "one insertion")
 expect(fuzzy("pelxxudo"), true, "two edits")
 expect(check("pelotxdo"), true, "fuzzy disabled by default")
 
+local scopeConfig = {ScopeAttributes={Match="MatchId"}}
+local context = Context.new(scopeConfig)
+local function mockPlayer(group, muted)
+    return {GetAttribute=function(_,name)
+        if name=="ChatFilterMuted" then return muted end
+        if name=="MatchId" then return group end
+        error("unexpected attribute")
+    end}
+end
+local p1,p2=mockPlayer("g1"),mockPlayer("g1")
+expect(context(p1,p2,"Match"),true,"matching scope")
+expect(context(p1,mockPlayer("g2"),"Match"),false,"mismatching scope")
+expect(context(p1,mockPlayer(nil),"Match"),false,"missing scope")
+expect(context(p1,mockPlayer("g2"),"Other"),true,"unconfigured scope")
+expect(context(mockPlayer("g1",true),p2,"Match"),false,"mute before scope")
+for _, bad in ipairs({false,true,{},math.huge,-math.huge,0/0,1.5,2^53,"",string.rep("x",65)}) do
+    expect(context(mockPlayer(bad),mockPlayer(bad),"Match"),false,"malformed group")
+end
+expect(context(mockPlayer(42),mockPlayer(42),"Match"),true,"integer scope")
+expect(context(mockPlayer("42"),mockPlayer(42),"Match"),false,"no type coercion")
+scopeConfig.ScopeAttributes.Match="wrong"
+expect(context(p1,p2,"Match"),true,"compiled scope stable")
+expect(pcall(Context.new,{ScopeAttributes={Match="ChatFilterMuted"}}),false,"scope mute conflict")
+expect(pcall(Context.new,{ScopeAttributes={Match="invalid name"}}),false,"bad scope attribute")
 local gate = Gate.new(config)
 expect(gate:Admit("A", "id1", 0), true, "first")
 for i = 1, 200 do expect(gate:Admit("A", "id1", 0.1), true, "recipient dedup") end

@@ -6,6 +6,9 @@
 return {
     Mode = "native",
     ChannelNames = { "RBXGeneral" }, -- owned callbacks only; no other reserved RBX channels
+    -- Optional gameplay-only grouping for owned custom channels, e.g. Match = "MatchId".
+    -- Values are trusted server-owned attributes; missing/mismatched groups deny delivery.
+    ScopeAttributes = {},
     EnableFuzzy = false, -- opt in after measuring false positives
     MaxMessageBytes = 512,
     MaxTokens = 80,

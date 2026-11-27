@@ -1,10 +1,10 @@
 -- Portable Lua mock of the Roblox boundary; not a Studio or privacy integration test.
 local modules = {}
-for _, name in ipairs({"TextPolicy","DeliveryGate","ChatConfiguration","ProfanityData"}) do
+for _, name in ipairs({"TextPolicy","DeliveryGate","ContextPolicy","ChatConfiguration","ProfanityData"}) do
     modules[name] = dofile("server/" .. name .. ".lua")
 end
 local config = modules.ChatConfiguration
-local channel, otherChannel = {}, {}
+local channel, otherChannel = {Name="Match"}, {Name="Other"}
 local failLegacyRequire = false
 local players = {}
 local onRemoving, connected
@@ -17,8 +17,12 @@ players.PlayerRemoving = {
 local lookup = {}
 function players:GetPlayerByUserId(id) return lookup[id] end
 local function player(id)
-    local p = {Parent=players, UserId=id, muted=false}
-    function p:GetAttribute(key) assert(key=="ChatFilterMuted") return self.muted end
+    local p = {Parent=players, UserId=id, muted=false, group=nil}
+    function p:GetAttribute(key)
+        if key=="ChatFilterMuted" then return self.muted end
+        if key=="MatchId" then return self.group end
+        error("unexpected attribute")
+    end
     lookup[id] = p
     return p
 end
@@ -27,7 +31,7 @@ local warnings = 0
 local env = setmetatable({
     warn = function() warnings = warnings + 1 end,
     game = { GetService = function(_, name) assert(name=="Players") return players end },
-    script = { Parent = {TextPolicy="TextPolicy", DeliveryGate="DeliveryGate", ChatConfiguration="ChatConfiguration", ProfanityData="ProfanityData"} },
+    script = { Parent = {TextPolicy="TextPolicy", DeliveryGate="DeliveryGate", ContextPolicy="ContextPolicy", ChatConfiguration="ChatConfiguration", ProfanityData="ProfanityData"} },
     require = function(name)
         if failLegacyRequire and (name=="TextPolicy" or name=="ProfanityData") then error("legacy module unavailable") end
         return assert(modules[name])
@@ -35,7 +39,7 @@ local env = setmetatable({
     os = { clock = function() return 10 end },
 }, {__index=_G})
 local filter = assert(loadfile("server/ChatFilter.lua", "t", env))()
-local allow, stop = filter.CreatePredicate("legacy_text")
+local allow, stop, stats = filter.CreatePredicate("legacy_text")
 local m = {TextChannel=channel, TextSource={UserId=1}, MessageId="one", Text="hello"}
 assert(allow(m,b) and allow(m,c))
 assert(not allow(m,b,otherChannel), "bound channel mismatch")
@@ -68,18 +72,33 @@ assert(rejoined ~= a)
 stop()
 stop()
 assert(not connected and not allow(m,b), "idempotent stop")
+local totals=stats()
+assert(totals.allow>0 and totals.word>0 and totals.muted>0 and totals.text_unavailable>0 and totals.stopped==1)
+totals.allow=0
+assert(stats().allow>0, "snapshot does not mutate counters")
 failLegacyRequire = true
-local context, stopContext = filter.CreatePredicate("context")
+config.ScopeAttributes={Match="MatchId"}
+rejoined.group="round-1"
+b.group="round-1"
+c.group="round-2"
+local context, stopContext, contextStats = filter.CreatePredicate("context")
+config.ScopeAttributes.Match="Unexpected" -- compiled policy must not change after initialization
 assert(not pcall(filter.CreatePredicate,"legacy_text"), "missing lexical dependency only affects legacy mode")
 local unreadable = setmetatable({TextChannel=channel, TextSource={UserId=1}, MessageId="context1"}, {
     __index=function(_, key) error("unexpected property access: "..key) end
 })
 assert(context(unreadable,b), "context mode never reads message content")
+assert(not context(unreadable,c), "same message, different gameplay scope")
+c.group="round-1"
+assert(context(unreadable,c), "scope is checked at every delivery")
+c.group=nil
+assert(not context(unreadable,c), "missing scope denies")
 rejoined.muted=true
 assert(not context(unreadable,b), "context mute works without text")
 rejoined.muted=false
 assert(context(unreadable,b))
 stopContext()
 assert(not context(unreadable,b))
+assert(contextStats().scope==2 and contextStats().muted==1 and contextStats().stopped==1)
 assert(not pcall(filter.CreatePredicate,"invalid"))
 print("PASS: adapter lifecycle, routing, and context mode isolation")
