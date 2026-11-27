@@ -1,72 +1,40 @@
-# 🛡️ ChatFilter Lite – Free Multilingual Chat Moderation for Roblox
+# ChatFilter Lite — Native Chat Safety (v2 candidate)
 
-A free, multilingual chat moderation system with **double‑layer filtering**, **Levenshtein evasion detection**, and **anti‑grooming tools**. Built for developers who want real control over their game's chat.
+Free, open-source supplemental moderation for Roblox. Roblox's native TextChatService remains the only transport, renderer and authority for chat filtering, permissions, reporting and muting.
 
----
+## Why this exists
 
-## ✨ Why this exists
+In January 2026, I was scammed in a Roblox game. I lost 79 Robux. I submitted clear evidence to Roblox support and was ignored.
 
-In January 2026, I was scammed in a Roblox game. I lost 79 Robux. I submitted clear evidence to Roblox support and was ignored.  
+I could have held a grudge. Instead, I built a chat filter and gave it away for free.
 
-I could have held a grudge. Instead, I built a chat filter that catches what Roblox misses – and gave it away for free.  
+## Important platform change
 
-I'm 16 years old. This is what I know how to do.
+Roblox requires player conversations to use TextChatService. Its platform-integrated chat is scheduled to become mandatory in May 2027 and removes script access to player message text. There is no supported workaround. This release removes the old custom RemoteEvent broadcast and custom rendering entirely.
 
----
+- **Default:** native chat only, with no custom callback.
+- **Optional transitional mode:** on an experience still using pre-platform-integrated TextChatService, attach a non-yielding supplemental delivery predicate to explicitly configured channels. The native platform still filters and applies recipient permissions.
+- **Not supported:** interception of integrated chat content, custom chat transport, raw chat logs, report paywalls, comprehensive grooming detection, or claims that every abusive message is detected.
 
-## 🚀 Features
+Sources: [chat guidelines](https://create.roblox.com/docs/chat/guidelines), [platform-integrated chat](https://create.roblox.com/docs/chat/platform-integrated-chat), [TextChannel callback](https://create.roblox.com/docs/reference/engine/classes/TextChannel).
 
-- **Multilingual insult detection** (Spanish, English, Portuguese)  
-- **Levenshtein distance** – catches evasion attempts like `korer`, `hoder`, `m1erd4`  
-- **Emoji translation** – blocks sexual emojis like 🍆, 💦, 🥵  
-- **Rate limiting** – anti‑spam protection  
-- **White‑list for innocent words** – avoids false positives  
-- **~ detection** – blocks simulated moaning  
+## Migration (required for v1 users)
 
----
+Delete the original ChatMessage RemoteEvent, legacy ChatServer and client GUI scripts in your experience. Remove any other code that forwards raw messages or disables the native chat interface. The two client files in this repository are inert migration stubs, not a replacement GUI. Keep Roblox reporting and mute/block controls available.
 
-## 📦 How to install (5 minutes)
+## Optional legacy policy setup
 
-### Server
-1. Download all `.lua` files from the `server/` folder.  
-2. In Roblox Studio, place them inside **ServerScriptService/ServerModules**.  
-3. Place `ChatServer.lua` directly in **ServerScriptService**.
+1. Put ChatConfiguration, ProfanityData, TextPolicy, DeliveryGate and ChatFilter in ServerScriptService/ServerModules as ModuleScripts (without .lua suffixes).
+2. Put ChatServer in ServerScriptService as a Script.
+3. In Studio, verify that platform-integrated chat is disabled and that you own the configured channel's ShouldDeliverCallback. EnableLegacyDeliveryPolicy defaults to false; enable it only after these checks. Do not overwrite another system's callback. RBXGeneral is the sole default target; other channels retain native moderation only.
+4. Test with multiple clients before deploying. See tests/README.md. Do not enable this mode in integrated chat.
 
-### Client
-1. Download `ChatClient.lua` from the `client/` folder.  
-2. Place it in **ReplicatedStorage/ClientModules**.  
-3. Create a **ScreenGui** in StarterGui and add a LocalScript that calls `ChatClient.Iniciar(gui)`.
+The optional policy uses exact normalized token and phrase matching, a small editable multilingual list, selected accent/leet folding, optional one-edit fuzzy matching (off by default), bounded processing and per-sender rate limits. Decisions are cached by platform message ID so each recipient callback does not consume a separate rate slot. Cache overflow denies new messages; entries expire; player departure cleans state. No text is retained or printed. A trusted server may set ChatFilterMuted on a Player for temporary gameplay restrictions in covered channels. This is not a platform-wide mute.
 
-### Network
-1. Create a **RemoteEvent** named `ChatMessage` inside **ReplicatedStorage**.  
+Native chat can still show a sender their own local echo even when delivery to others is denied. This library does not guarantee full Unicode normalization, contextual detection, evasion resistance, or moderation across unconfigured channels. Empty text is left to native moderation; never attempt to retrieve unavailable text. Disable the legacy hook before platform-integrated chat migration.
 
-That's it. The system works automatically – no configuration needed.  
-*(Optional) Customize words and sensitivity by editing `ChatConfig.lua` and `ProfanityData.lua`.*
+## Tests
 
----
+Run `lua5.4 tests/regression.lua`. Pure policy/gate tests and deterministic malformed-input checks are separate from Roblox integration tests. No Studio validation is claimed.
 
-## 📁 Files
-
-| File | Type | Location | Purpose |
-|------|------|----------|---------|
-| `ChatConfig.lua` | ModuleScript | ServerModules | All configurable constants |
-| `ProfanityData.lua` | ModuleScript | ServerModules | Banned words, phrases, emojis, white‑list |
-| `ChatFilter.lua` | ModuleScript | ServerModules | Core filtering logic (normalization, Levenshtein) |
-| `ChatServer.lua` | Script | ServerScriptService | Receives messages, validates, broadcasts |
-| `ChatClient.lua` | ModuleScript | ClientModules | Chat GUI, sends messages to server |
-
----
-
-## 📝 License
-
-MIT – do whatever you want, just keep the copyright notice.
-
----
-
-## 🌍 Languages
-
-The filter supports **Spanish, English, and Portuguese** by default. You can easily add more by editing `ProfanityData.lua`.
-
----
-
-If this project helped you, consider starring ⭐ the repo. It means a lot.
+MIT license. Contributions welcome.

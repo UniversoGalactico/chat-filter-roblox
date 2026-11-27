@@ -1,6 +1,3 @@
--- IniciarChat.lua (LocalScript en StarterGui)
--- Responsabilidad única: Iniciar el módulo ChatClient.
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ChatClient = require(ReplicatedStorage.ClientModules:WaitForChild("ChatClient", 5))
-ChatClient.Iniciar(script.Parent)
+-- Deprecated compatibility stub; remove this LocalScript during migration.
+-- Do not disable the native chat UI.
+warn("[ChatFilter] Native chat migration: remove InitChatClient.")

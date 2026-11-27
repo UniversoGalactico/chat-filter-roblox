@@ -1,0 +1,57 @@
+-- Bounded, non-yielding message admission. Roblox invokes delivery once per recipient.
+-- Cache only the message ID, expiry and boolean; never the message text.
+local DeliveryGate = {}
+function DeliveryGate.new(config)
+    local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
+    assert(type(limit) == "number" and limit >= 1 and limit <= 20 and limit % 1 == 0)
+    assert(type(ttl) == "number" and ttl >= 1 and ttl <= 60)
+    assert(type(capacity) == "number" and capacity >= limit and capacity <= 256 and capacity % 1 == 0)
+    local senders = {}
+    local gate = {}
+
+    function gate:Forget(sender)
+        senders[sender] = nil
+    end
+
+    function gate:Decide(sender, messageId, now, evaluate)
+        if sender == nil or type(messageId) ~= "string" or #messageId == 0 or #messageId > 128 then
+            return false, "invalid_identity"
+        end
+        if type(now) ~= "number" or now ~= now or now == math.huge or now == -math.huge then
+            return false, "invalid_clock"
+        end
+        local state = senders[sender]
+        if not state then
+            state = { cache = {}, attempts = {}, count = 0, last = now }
+            senders[sender] = state
+        end
+        if now < state.last then return false, "clock_regression" end
+        state.last = now
+        local cached = state.cache[messageId]
+        if cached and cached.expires > now then return cached.allow, cached.reason end
+        -- Keep all live decisions, including denials. Never evict an unexpired deny.
+        for id, decision in pairs(state.cache) do
+            if decision.expires <= now then
+                state.cache[id] = nil
+                state.count = state.count - 1
+            end
+        end
+        if state.count >= capacity then return false, "cache_capacity" end
+        while state.attempts[1] and now - state.attempts[1] >= 1 do
+            table.remove(state.attempts, 1)
+        end
+        local allow, reason = false, "rate_limit"
+        if #state.attempts < limit then
+            state.attempts[#state.attempts + 1] = now
+            local ok, decision, why = pcall(evaluate)
+            allow = ok and decision == true
+            -- Only internal fixed reason codes may be returned; do not retain thrown errors.
+            reason = ok and type(why) == "string" and #why <= 32 and why or "policy_error"
+        end
+        state.cache[messageId] = { expires = now + ttl, allow = allow, reason = reason }
+        state.count = state.count + 1
+        return allow, reason
+    end
+    return gate
+end
+return DeliveryGate

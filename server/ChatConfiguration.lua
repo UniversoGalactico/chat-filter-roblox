@@ -1,9 +1,14 @@
-local ChatConfig = {}
-
-ChatConfig.MAX_PALABRA_LENGTH = 20
-ChatConfig.MAX_MENSAJE_LENGTH = 1000
-ChatConfig.MAX_MENSAJES_POR_SEGUNDO = 3
-ChatConfig.LEVENSHTEIN_UMBRAL = 2
-ChatConfig.LEVENSHTEIN_DIFF_MAX = 2
-
-return ChatConfig
+-- Opt in only while the experience uses pre-platform-integrated TextChatService.
+-- Keep false in platform-integrated chat. Roblox owns all message transport.
+return {
+    EnableLegacyDeliveryPolicy = false,
+    ChannelNames = { "RBXGeneral" }, -- explicitly owned callbacks only
+    EnableTextRules = true,
+    EnableFuzzy = false, -- opt in after measuring false positives
+    MaxMessageBytes = 512,
+    MaxTokens = 80,
+    MaxTokenBytes = 64,
+    MessagesPerSecond = 3,
+    DecisionTTL = 10,
+    MaxCachedMessages = 64,
+}
