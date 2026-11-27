@@ -9,6 +9,8 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["adapter_released_callback","ChatFilter.lua","adapter.lua","if not active or bindings[channel] ~= token then record(\"stopped\") return false end","if not active then record(\"stopped\") return false end"],
+  ["adapter_duplicate_binding","ChatFilter.lua","adapter.lua","assert(not bindings[channel], \"channel already bound; release before rebinding\")","assert(true)"],
   [
     "lexical_spanish_punctuation",
     "TextPolicy.lua",
@@ -209,7 +211,7 @@ MUTANTS = [
     "adapter_reserved",
     "ChatFilter.lua",
     "adapter.lua",
-    "assert(name == \"RBXGeneral\" or name:sub(1,3):upper() ~= \"RBX\", \"reserved channel\")",
+    "assert(name:sub(1,3):upper() ~= \"RBX\", \"reserved channel\")",
     "assert(true)"
   ],
   [

@@ -74,15 +74,24 @@ function ChatFilter.new(options)
         end
         return evaluate(text)
     end
+    -- One active callback generation per channel. A released callback never revives.
+    local bindings = setmetatable({}, {__mode=&quot;k&quot;})
     local controller = {}
+    function controller:ReleaseChannel(channel)
+        if channel == nil then return end
+        bindings[channel] = nil
+    end
     function controller:ForChannel(channel)
         assert(active, &quot;controller destroyed&quot;)
         assert(channel:IsA(&quot;TextChannel&quot;) and channel:IsDescendantOf(TextChatService), &quot;expected live TextChannel&quot;)
         local name = channel.Name
-        assert(name == &quot;RBXGeneral&quot; or name:sub(1,3):upper() ~= &quot;RBX&quot;, &quot;reserved channel&quot;)
+        assert(name:sub(1,3):upper() ~= &quot;RBX&quot;, &quot;reserved channel&quot;)
+        assert(not bindings[channel], &quot;channel already bound; release before rebinding&quot;)
+        local token = {}
+        bindings[channel] = token
         -- Does NOT assign or replace ShouldDeliverCallback. The sole owner does that.
         return function(message, recipient)
-            if not active then record(&quot;stopped&quot;) return false end
+            if not active or bindings[channel] ~= token then record(&quot;stopped&quot;) return false end
             local ok, allow, reason = pcall(decide, message, recipient, channel, name)
             if not ok or type(allow) ~= &quot;boolean&quot; or not REASONS[reason]
                 or allow ~= (reason == &quot;allow&quot;) then
@@ -102,6 +111,7 @@ function ChatFilter.new(options)
         if not active then return end
         active = false
         removing:Disconnect()
+        for channel in pairs(bindings) do bindings[channel] = nil end
         gate:Clear()
     end
     return controller
