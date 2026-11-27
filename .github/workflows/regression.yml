@@ -1,5 +1,12 @@
 name: Policy regressions
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: chatfilter-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -11,7 +18,7 @@ jobs:
         with:
           persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua && lua5.4 tests/bootstrap.lua
       - name: Install checksum-pinned Luau 0.734
         run: |
           archive="$RUNNER_TEMP/luau-ubuntu.zip"

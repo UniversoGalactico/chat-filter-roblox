@@ -58,7 +58,7 @@ function DeliveryGate.new(config)
             local known = ok and type(why) == "string" and reasons[why]
             allow = known == true and decision == true and why == "allow"
             reason = known and why or "policy_error"
-            if decision == true and not allow then reason = "policy_error" end
+            if (decision == true and not allow) or (why == "allow" and not allow) then reason = "policy_error" end
         end
         state.cache[messageId] = { expires = now + ttl, allow = allow, reason = reason }
         state.count = state.count + 1

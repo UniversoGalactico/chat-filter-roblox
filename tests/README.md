@@ -1,5 +1,5 @@
 # Verification
-Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, and `luau tests/regression.lua` from the root. Pure modules intentionally use portable Lua syntax. The adapter runs against a Lua mock, not Roblox Studio. CI uses checksum-pinned Luau 0.734.
+Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua`, and `luau tests/regression.lua` from the root. Pure modules intentionally use portable Lua syntax. The adapter runs against a Lua mock, not Roblox Studio. CI uses checksum-pinned Luau 0.734.
 
 Studio / live experience checklist (not yet executed):
 1. Remove old ChatMessage RemoteEvent and all legacy scripts that send or display player text. Leave native chat enabled.

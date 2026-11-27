@@ -129,4 +129,42 @@ for i = 1, 2000 do
     local shouldBlock = #candidate >= 6 and distance(candidate,target) <= 1
     expect(synthetic(candidate), not shouldBlock, "differential fuzzy")
 end
+-- State-machine properties over seeded interleavings. Never count per-recipient callbacks as new messages.
+local modelGate = Gate.new({MessagesPerSecond=3, DecisionTTL=5, MaxCachedMessages=24})
+local models = {}
+local sequenceTime = 0
+for i = 1, 12000 do
+    rng = (rng * 48271) % 2147483647
+    sequenceTime = sequenceTime + (rng % 10) / 100
+    local sender = "S" .. (rng % 4)
+    local model = models[sender]
+    if not model then model = {decisions={}, evaluations={}} models[sender]=model end
+    if rng % 97 == 0 then
+        modelGate:Forget(sender)
+        models[sender] = nil
+    else
+        local id = "M" .. (rng % 120)
+        local prev = model.decisions[id]
+        local evaluated = false
+        local expected = rng % 5 ~= 0
+        local result, why = modelGate:Decide(sender, id, sequenceTime, function()
+            evaluated = true
+            model.evaluations[#model.evaluations+1] = sequenceTime
+            return expected, expected and "allow" or "word"
+        end)
+        if prev and sequenceTime-prev.time < 5 then
+            expect(result, prev.value, "live decision is stable")
+            expect(evaluated, false, "live decision is never re-evaluated")
+        else
+            model.decisions[id] = {time=sequenceTime, value=result}
+        end
+        -- Cached allows/denials do not extend TTL; overflow denials may quarantine longer.
+        if why=="cache_capacity" then model.decisions[id]={time=sequenceTime,value=false} end
+        while model.evaluations[1] and sequenceTime-model.evaluations[1]>=1 do
+            table.remove(model.evaluations,1)
+        end
+        expect(#model.evaluations <= 3, true, "sliding evaluation bound")
+        if evaluated then expect(result, expected, "evaluation result preserved") end
+    end
+end
 print("PASS: " .. count .. " assertions")
