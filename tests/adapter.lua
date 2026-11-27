@@ -27,6 +27,10 @@ local function player(id)
     return p
 end
 local a, b, c = player(1), player(2), player(3)
+local function textSource(p, parent, canSend)
+    return {UserId=p.UserId, Parent=parent, CanSend=canSend}
+end
+local sa,sb,sc=textSource(a,channel,true),textSource(b,channel,true),textSource(c,channel,false)
 local warnings = 0
 local env = setmetatable({
     warn = function() warnings = warnings + 1 end,
@@ -40,40 +44,53 @@ local env = setmetatable({
 }, {__index=_G})
 local filter = assert(loadfile("server/ChatFilter.lua", "t", env))()
 local allow, stop, stats = filter.CreatePredicate("legacy_text")
-local m = {TextChannel=channel, TextSource={UserId=1}, MessageId="one", Text="hello"}
-assert(allow(m,b) and allow(m,c))
-assert(not allow(m,b,otherChannel), "bound channel mismatch")
-assert(allow(m,b,channel), "bound channel matches")
+local m = {TextChannel=channel, TextSource=sa, MessageId="one", Text="hello"}
+assert(allow(m,sb) and allow(m,sc), "read-only recipient can receive")
+sa.CanSend=false
+assert(not allow(m,sb), "read-only sender cannot deliver")
+sa.CanSend=true
+sa.Parent=otherChannel
+assert(not allow(m,sb), "foreign sender source")
+sa.Parent=channel
+sb.Parent=nil
+assert(not allow(m,sb), "detached recipient source")
+sb.Parent=channel
+assert(allow(m,sb))
+assert(not allow(m,sb,otherChannel), "bound channel mismatch")
+assert(allow(m,sb,channel), "bound channel matches")
 -- Same platform MessageId, different recipient-visible content.
 m.Text = "IDIOTA"
-assert(not allow(m,c), "cached admission must not grant a different text")
+assert(not allow(m,sc), "cached admission must not grant a different text")
 m.Text = "hello"
-assert(allow(m,b), "denied variant must not poison another recipient")
+assert(allow(m,sb), "denied variant must not poison another recipient")
 m.Text = ""
-assert(not allow(m,c), "unavailable variant must not reuse allow")
+assert(not allow(m,sc), "unavailable variant must not reuse allow")
 m.Text = "hello"
 a.muted = true
-assert(not allow(m,b), "context restriction must precede cached allow")
+assert(not allow(m,sb), "context restriction must precede cached allow")
 a.muted = false
-assert(allow(m,b))
-m = {TextChannel=channel, TextSource={UserId=1}, MessageId="two", Text="IDIOTA"}
-assert(not allow(m,b) and not allow(m,c))
-assert(not allow(nil,b) and not allow({},b))
-assert(not allow(m,{UserId=99}))
-m = {TextChannel=channel, TextSource={UserId=1}, MessageId="three", Text=""}
-assert(not allow(m,b), "legacy mode cannot evaluate unavailable text")
-assert(not allow(m,c) and warnings==1, "one static warning, independent denial")
+assert(allow(m,sb))
+m = {TextChannel=channel, TextSource=sa, MessageId="two", Text="IDIOTA"}
+assert(not allow(m,sb) and not allow(m,sc))
+assert(not allow(nil,sb) and not allow({},sb))
+assert(not allow(m,{UserId=99, Parent=channel, CanSend=true}))
+m = {TextChannel=channel, TextSource=sa, MessageId="three", Text=""}
+assert(not allow(m,sb), "legacy mode cannot evaluate unavailable text")
+assert(not allow(m,sc) and warnings==1, "one static warning, independent denial")
 onRemoving(a)
-assert(not allow(m,b), "PlayerRemoving before Parent changes")
-assert(not allow({TextChannel=channel, TextSource={UserId=1},MessageId="after-removal",Text="hello"},b),
+assert(not allow(m,sb), "PlayerRemoving before Parent changes")
+assert(not allow({TextChannel=channel, TextSource=sa,MessageId="after-removal",Text="hello"},sb),
     "departing sender with valid content and fresh admission must be denied")
-assert(not allow({TextChannel=channel, TextSource={UserId=2},MessageId="other",Text="hello"},a), "departing receiver")
+assert(not allow({TextChannel=channel, TextSource=sb,MessageId="other",Text="hello"},sa), "departing receiver")
 local rejoined = player(1)
-assert(allow({TextChannel=channel, TextSource={UserId=1},MessageId="four",Text="hello"},b), "new Player identity")
+sa.Parent=nil
+assert(not allow({TextChannel=channel, TextSource=sa,MessageId="old-session",Text="hello"},sb), "detached source after rejoin")
+sa=textSource(rejoined,channel,true)
+assert(allow({TextChannel=channel, TextSource=sa,MessageId="four",Text="hello"},sb), "new Player identity")
 assert(rejoined ~= a)
 stop()
 stop()
-assert(not connected and not allow(m,b), "idempotent stop")
+assert(not connected and not allow(m,sb), "idempotent stop")
 local totals=stats()
 assert(totals.allow>0 and totals.word>0 and totals.muted>0 and totals.text_unavailable>0 and totals.stopped==1)
 totals.allow=0
@@ -86,21 +103,21 @@ c.group="round-2"
 local context, stopContext, contextStats = filter.CreatePredicate("context")
 config.ScopeAttributes.Match="Unexpected" -- compiled policy must not change after initialization
 assert(not pcall(filter.CreatePredicate,"legacy_text"), "missing lexical dependency only affects legacy mode")
-local unreadable = setmetatable({TextChannel=channel, TextSource={UserId=1}, MessageId="context1"}, {
+local unreadable = setmetatable({TextChannel=channel, TextSource=sa, MessageId="context1"}, {
     __index=function(_, key) error("unexpected property access: "..key) end
 })
-assert(context(unreadable,b), "context mode never reads message content")
-assert(not context(unreadable,c), "same message, different gameplay scope")
+assert(context(unreadable,sb), "context mode never reads message content")
+assert(not context(unreadable,sc), "same message, different gameplay scope")
 c.group="round-1"
-assert(context(unreadable,c), "scope is checked at every delivery")
+assert(context(unreadable,sc), "scope is checked at every delivery")
 c.group=nil
-assert(not context(unreadable,c), "missing scope denies")
+assert(not context(unreadable,sc), "missing scope denies")
 rejoined.muted=true
-assert(not context(unreadable,b), "context mute works without text")
+assert(not context(unreadable,sb), "context mute works without text")
 rejoined.muted=false
-assert(context(unreadable,b))
+assert(context(unreadable,sb))
 stopContext()
-assert(not context(unreadable,b))
+assert(not context(unreadable,sb))
 assert(contextStats().scope==2 and contextStats().muted==1 and contextStats().stopped==1)
 assert(not pcall(filter.CreatePredicate,"invalid"))
 print("PASS: adapter lifecycle, routing, and context mode isolation")

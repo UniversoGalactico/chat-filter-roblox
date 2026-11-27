@@ -68,7 +68,7 @@ Marca cada caso únicamente después de observarlo, con dos o tres clientes de p
 - [ ] Un permiso nativo denegado no se convierte en un permiso concedido.
 - [ ] La cuota se aplica por mensaje, no por destinatario.
 - [ ] Dos jugadores con el mismo grupo servidor pueden superar la regla de grupo; un tercero de otro grupo no. Al cambiar o quitar atributos, la regla cambia.
-- [ ] Un jugador que abandona y vuelve recibe estado nuevo, y no se aceptan entregas pendientes de la sesión anterior.
+- [ ] Un jugador que abandona y vuelve recibe estado nuevo. Las entregas con TextSources retirados del canal se rechazan; verifica el comportamiento real de las fuentes de texto tras reconectar.
 - [ ] Los canales reservados y los callbacks de otros sistemas no son reemplazados.
 - [ ] Un canal retirado o renombrado no conserva un permiso del callback anterior.
 - [ ] Si pruebas legacy_text con chat no integrado, un bloqueo impide la entrega a otros, aunque el remitente pueda ver su eco local.

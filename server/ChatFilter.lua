@@ -46,6 +46,11 @@ function ChatFilter.CreatePredicate(mode)
             local channel = message.TextChannel
             if not source or not recipient or not channel
                 or (expectedChannel and channel ~= expectedChannel) then return false, "invalid_identity" end
+            -- Roblox creates TextSources directly under the channel. Reject detached
+            -- or foreign sources before resolving a possibly rejoined Player.
+            if source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true then
+                return false, "invalid_identity"
+            end
             local sender = Players:GetPlayerByUserId(source.UserId)
             local receiver = Players:GetPlayerByUserId(recipient.UserId)
             if not sender or sender.Parent ~= Players or leaving[sender]
