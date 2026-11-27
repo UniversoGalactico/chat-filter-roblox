@@ -17,7 +17,7 @@ function ContextPolicy.new(config)
         assert(type(channel) == "string" and #channel > 0 and #channel <= 128, "invalid scope channel")
         assert(type(attribute) == "string" and #attribute > 0 and #attribute <= 64
             and attribute:match("^[A-Za-z_][A-Za-z0-9_]*$"), "invalid scope attribute")
-        assert(attribute ~= "ChatFilterMuted", "mute flag cannot be a scope")
+        assert(attribute ~= "ChatFilterMuted" and attribute:sub(1,3):upper() ~= "RBX", "reserved scope attribute")
         scopes[channel] = attribute
     end
     return function(sender, receiver, channelName)

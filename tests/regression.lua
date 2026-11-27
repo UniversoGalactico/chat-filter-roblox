@@ -80,6 +80,7 @@ scopeConfig.ScopeAttributes.Match="wrong"
 expect(context(p1,p2,"Match"),true,"compiled scope stable")
 expect(pcall(Context.new,{ScopeAttributes={Match="ChatFilterMuted"}}),false,"scope mute conflict")
 expect(pcall(Context.new,{ScopeAttributes={Match="invalid name"}}),false,"bad scope attribute")
+expect(pcall(Context.new,{ScopeAttributes={Match="RBXInternal"}}),false,"reserved scope attribute")
 local gate = Gate.new(config)
 expect(gate:Admit("A", "id1", 0), true, "first")
 for i = 1, 200 do expect(gate:Admit("A", "id1", 0.1), true, "recipient dedup") end
