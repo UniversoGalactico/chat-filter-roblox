@@ -25,6 +25,8 @@ for _, s in ipairs({"IDIOTA", "imbécil", "IMBÉCIL", "imbe" .. utf8.char(0x301)
 end
 expect(check("skill yourselfish"), true, "phrase boundary")
 expect(check("ＩＤＩＯＴＡ"), false, "fullwidth ASCII")
+expect(check("idio" .. utf8.char(0x2060) .. "ta"), false, "word joiner")
+expect(check("idio" .. utf8.char(0x202E) .. "ta"), false, "format control")
 expect(check("kill" .. utf8.char(0xA0) .. "yourself"), false, "NBSP separator")
 expect(check("kill—yourself"), false, "em dash separator")
 expect(check("日本語"), true, "non-Latin text remains native moderated")
@@ -82,6 +84,9 @@ local cleanGate = Gate.new(config)
 local allow, reason = cleanGate:Decide("A", "private", 0, function() return false, "private raw text" end)
 expect(allow, false, "unknown reason denied")
 expect(reason, "policy_error", "unknown reason not retained")
+local badAllow, badReason = cleanGate:Decide("B", "bad-allow", 0, function() return true, "unrecognized" end)
+expect(badAllow, false, "unknown allow contract rejected")
+expect(badReason, "policy_error", "invalid allow reason normalized")
 -- Deterministic malformed/random-byte smoke test; no raw input printed.
 local rng = 7
 for i = 1, 1000 do

@@ -21,14 +21,16 @@ local function player(id)
     return p
 end
 local a, b, c = player(1), player(2), player(3)
+local warnings = 0
 local env = setmetatable({
+    warn = function() warnings = warnings + 1 end,
     game = { GetService = function(_, name) assert(name=="Players") return players end },
     script = { Parent = {TextPolicy="TextPolicy", DeliveryGate="DeliveryGate", ChatConfiguration="ChatConfiguration", ProfanityData="ProfanityData"} },
     require = function(name) return assert(modules[name]) end,
     os = { clock = function() return 10 end },
 }, {__index=_G})
 local filter = assert(loadfile("server/ChatFilter.lua", "t", env))()
-local allow, stop = filter.CreatePredicate()
+local allow, stop = filter.CreatePredicate("legacy_text")
 local m = {TextSource={UserId=1}, MessageId="one", Text="hello"}
 assert(allow(m,b) and allow(m,c))
 a.muted = true
@@ -40,7 +42,8 @@ assert(not allow(m,b) and not allow(m,c))
 assert(not allow(nil,b) and not allow({},b))
 assert(not allow(m,{UserId=99}))
 m = {TextSource={UserId=1}, MessageId="three", Text=""}
-assert(allow(m,b), "native-only for unavailable text")
+assert(not allow(m,b), "legacy mode cannot evaluate unavailable text")
+assert(not allow(m,c) and warnings==1, "one static warning, cached denial")
 onRemoving(a)
 assert(not allow(m,b), "PlayerRemoving before Parent changes")
 assert(not allow({TextSource={UserId=2},MessageId="other",Text="hello"},a), "departing receiver")
@@ -50,4 +53,16 @@ assert(rejoined ~= a)
 stop()
 stop()
 assert(not connected and not allow(m,b), "idempotent stop")
-print("PASS: adapter lifecycle and routing")
+local context, stopContext = filter.CreatePredicate("context")
+local unreadable = setmetatable({TextSource={UserId=1}, MessageId="context1"}, {
+    __index=function(_, key) error("unexpected property access: "..key) end
+})
+assert(context(unreadable,b), "context mode never reads message content")
+rejoined.muted=true
+assert(not context(unreadable,b), "context mute works without text")
+rejoined.muted=false
+assert(context(unreadable,b))
+stopContext()
+assert(not context(unreadable,b))
+assert(not pcall(filter.CreatePredicate,"invalid"))
+print("PASS: adapter lifecycle, routing, and context mode isolation")

@@ -1,7 +1,7 @@
 -- Bounded, non-yielding message admission. Roblox invokes delivery once per recipient.
 -- Cache only the message ID, expiry and boolean; never the message text.
 local DeliveryGate = {}
-local reasons = { allow=true, invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true, word=true, fuzzy=true, native_only=true }
+local reasons = { allow=true, invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true, word=true, fuzzy=true, text_unavailable=true }
 function DeliveryGate.new(config)
     local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
     assert(type(limit) == "number" and limit >= 1 and limit <= 20 and limit % 1 == 0)
@@ -54,9 +54,11 @@ function DeliveryGate.new(config)
         if #state.attempts < limit then
             state.attempts[#state.attempts + 1] = now
             local ok, decision, why = pcall(evaluate)
-            allow = ok and decision == true
-            -- Only internal fixed reason codes may be returned; do not retain thrown errors.
-            reason = ok and type(why) == "string" and reasons[why] and why or "policy_error"
+            -- Accept only the known decision/reason contract. Never retain caller text.
+            local known = ok and type(why) == "string" and reasons[why]
+            allow = known == true and decision == true and why == "allow"
+            reason = known and why or "policy_error"
+            if decision == true and not allow then reason = "policy_error" end
         end
         state.cache[messageId] = { expires = now + ttl, allow = allow, reason = reason }
         state.count = state.count + 1

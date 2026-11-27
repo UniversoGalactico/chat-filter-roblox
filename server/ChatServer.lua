@@ -1,4 +1,4 @@
--- ServerScriptService: optional legacy TextChatService delivery policy.
+-- ServerScriptService: optional TextChatService delivery policies.
 -- Default: do not install a custom hook. Native chat remains fully enabled.
 local TextChatService = game:GetService("TextChatService")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -7,8 +7,12 @@ if not modules then warn("[ChatFilter] Missing ServerModules; native chat unchan
 local configModule = modules:FindFirstChild("ChatConfiguration")
 if not configModule then warn("[ChatFilter] Missing configuration; native chat unchanged.") return end
 local config = require(configModule)
-if not config.EnableLegacyDeliveryPolicy then
+if config.Mode == "native" then
     print("[ChatFilter] Native chat only. No custom delivery hook installed.")
+    return
+end
+if config.Mode ~= "context" and config.Mode ~= "legacy_text" then
+    warn("[ChatFilter] Unknown Mode; native chat unchanged.")
     return
 end
 local filterModule = modules:WaitForChild("ChatFilter", 10)
@@ -17,8 +21,12 @@ local filter = require(filterModule)
 local channels = TextChatService:WaitForChild("TextChannels", 10)
 if not channels then warn("[ChatFilter] TextChannels missing; no hook installed.") return end
 local names = {}
-for _, name in ipairs(config.ChannelNames) do names[name] = true end
-local predicate, stop = filter.CreatePredicate()
+assert(type(config.ChannelNames) == "table" and #config.ChannelNames <= 32, "invalid channel allowlist")
+for _, name in ipairs(config.ChannelNames) do
+    assert(type(name) == "string" and #name > 0 and #name <= 128, "invalid channel name")
+    names[name] = true
+end
+local predicate, stop = filter.CreatePredicate(config.Mode)
 local bound = {}
 local function bind(channel)
     if not channel:IsA("TextChannel") or not names[channel.Name] or bound[channel] then return end

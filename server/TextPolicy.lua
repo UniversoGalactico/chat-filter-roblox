@@ -8,7 +8,9 @@ local accents = {
     ["ú"]="u", ["ù"]="u", ["û"]="u", ["ü"]="u", ["Ú"]="u", ["Ù"]="u", ["Û"]="u", ["Ü"]="u",
     ["ñ"]="n", ["Ñ"]="n", ["ç"]="c", ["Ç"]="c",
 }
-local invisible = { 0x200B, 0x200C, 0x200D, 0xFEFF, 0x300, 0x301, 0x302, 0x303, 0x308, 0x327 }
+local invisible = { 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF, 0xFE0E, 0xFE0F, 0x300, 0x301, 0x302, 0x303, 0x308, 0x327 }
+for cp = 0x202A, 0x202E do invisible[#invisible + 1] = cp end
+for cp = 0x2066, 0x2069 do invisible[#invisible + 1] = cp end
 local ignored, fold = {}, {}
 for _, cp in ipairs(invisible) do ignored[cp] = true end
 for char, replacement in pairs(accents) do fold[utf8.codepoint(char)] = replacement end
@@ -28,6 +30,7 @@ local function tokenize(text, maxTokens, maxTokenBytes)
     -- No claim of full normalization or cross-script confusable detection.
     local parts = {}
     for _, cp in utf8.codes(text) do
+        if cp > 0x10FFFF or (cp >= 0xD800 and cp <= 0xDFFF) then return nil, "invalid_utf8" end
         if not ignored[cp] then
             if cp >= 0xFF01 and cp <= 0xFF5E then cp = cp - 0xFEE0 end
             local part

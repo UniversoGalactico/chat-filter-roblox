@@ -1,4 +1,4 @@
--- Optional supplemental delivery predicate for pre-platform-integrated TextChatService.
+-- Optional supplemental delivery predicate; context mode never reads message text.
 -- No RemoteEvent, no manual text forwarding, no custom rendering, no raw chat logs.
 local Players = game:GetService("Players")
 local TextPolicy = require(script.Parent.TextPolicy)
@@ -7,15 +7,17 @@ local Config = require(script.Parent.ChatConfiguration)
 local Data = require(script.Parent.ProfanityData)
 
 local ChatFilter = {}
-function ChatFilter.CreatePredicate()
-    local evaluate = TextPolicy.new(Config, Data)
+function ChatFilter.CreatePredicate(mode)
+    assert(mode == "context" or mode == "legacy_text", "invalid delivery mode")
+    local evaluate
+    if mode == "legacy_text" then evaluate = TextPolicy.new(Config, Data) end
     local gate = DeliveryGate.new(Config)
     local leaving = setmetatable({}, { __mode = "k" })
     local removing = Players.PlayerRemoving:Connect(function(player)
         leaving[player] = true
         gate:Forget(player)
     end)
-    local active = true
+    local active, warnedUnavailable = true, false
     local function predicate(message, recipient)
         if not active then return false end
         local ok, allow = pcall(function()
@@ -30,11 +32,16 @@ function ChatFilter.CreatePredicate()
             -- Trusted server-side gameplay restriction, never a substitute for Roblox permissions.
             if sender:GetAttribute("ChatFilterMuted") == true then return false end
             return gate:Decide(sender, message.MessageId, os.clock(), function()
-                if not Config.EnableTextRules then return true, "allow" end
-                -- Empty/unavailable text cannot be analyzed. Do not attempt to recover it.
-                -- Native moderation remains responsible; opt out of the legacy hook when migrating.
+                -- Content-independent mode must never even access the Text property.
+                if mode == "context" then return true, "allow" end
                 local text = message.Text
-                if text == "" then return true, "native_only" end
+                if type(text) ~= "string" or text == "" then
+                    if not warnedUnavailable then
+                        warnedUnavailable = true
+                        warn("[ChatFilter] Legacy text unavailable; disable legacy_text mode in Studio. No attempt to recover content.")
+                    end
+                    return false, "text_unavailable"
+                end
                 return evaluate(text)
             end)
         end)
