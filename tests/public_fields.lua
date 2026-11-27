@@ -55,6 +55,12 @@ check(f1,a,"name",nil,"rate_limit")
 for _, invalid in ipairs({{},"",string.rep("x",129),"name\nline",string.char(255),"   "}) do
     check(f1,b,invalid,nil,"invalid_text")
 end
+for _,cp in ipairs({0xA0,0x1680,0x2000,0x200A,0x200B,0x200C,0x200D,0x202F,0x205F,0x2060,0x3000,0xFEFF,0xFE0E,0xFE0F}) do
+    check(f1,b,utf8.char(cp),nil,"invalid_text")
+end
+for _,cp in ipairs({0x85,0x9F,0x2028,0x2029,0x202E,0x2066}) do
+    check(f1,b,"label"..utf8.char(cp),nil,"invalid_text")
+end
 check(f1,nil,"name",nil,"invalid_player")
 check(f1,player(0),"name",nil,"invalid_player")
 pauseBegin=true
@@ -102,6 +108,14 @@ output=nil
 check(f1,player(10),"name",nil,"filter_error")
 output="officially returned label"
 check(f1,player(11),"name",output,"allow")
+output=utf8.char(0x200B)..utf8.char(0xA0)
+check(f1,player(100),"name",nil,"filter_error")
+output="Luna 🐱"
+check(f1,player(101),"Luna 🐱",output,"allow")
+output="José"
+check(f1,player(102),"José",output,"allow")
+output="日本語"
+check(f1,player(103),"日本語",output,"allow")
 output="Filtered label"
 local before=claims
 local optional=Pipeline.new(deps,1,function()return false end)

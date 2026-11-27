@@ -67,6 +67,10 @@ expect(context(p1,mockPlayer("g2"),"Match"),false,"mismatching scope")
 expect(context(p1,mockPlayer(nil),"Match"),false,"missing scope")
 expect(context(p1,mockPlayer("g2"),"Other"),true,"unconfigured scope")
 expect(context(mockPlayer("g1",true),p2,"Match"),false,"mute before scope")
+for _,badMute in ipairs({"false",0,1,{}}) do
+    expect(context(mockPlayer("g1",badMute),p2,"Match"),false,"malformed mute fails closed")
+end
+expect(context(mockPlayer("g1",false),p2,"Match"),true,"explicit unmute")
 for _, bad in ipairs({false,true,{},math.huge,-math.huge,0/0,1.5,2^53,"",string.rep("x",65)}) do
     expect(context(mockPlayer(bad),mockPlayer(bad),"Match"),false,"malformed group")
 end

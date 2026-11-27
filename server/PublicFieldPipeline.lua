@@ -7,13 +7,23 @@ end
 local function validId(id)
     return type(id)=="number" and id>0 and id<=2^53-1 and id%1==0
 end
+local function isBlank(cp)
+    return cp==32 or cp==0xA0 or cp==0x1680 or (cp>=0x2000 and cp<=0x200D)
+        or cp==0x202F or cp==0x205F or cp==0x2060 or cp==0x3000 or cp==0xFEFF
+        or cp==0xFE0E or cp==0xFE0F
+end
 local function validText(value, limit)
     if type(value)~="string" or #value==0 or #value>limit or not utf8.len(value) then return false end
+    local visible=false
     for _,cp in utf8.codes(value) do
         if cp>0x10FFFF or (cp>=0xD800 and cp<=0xDFFF)
-            or cp<32 or cp==127 or cp==0x2028 or cp==0x2029 then return false end
+            or cp<32 or (cp>=127 and cp<=159)
+            or cp==0x2028 or cp==0x2029
+            or (cp>=0x202A and cp<=0x202E) or (cp>=0x2066 and cp<=0x2069) then return false end
+        if not isBlank(cp) then visible=true end
     end
-    return value:find("%S")~=nil
+    -- A limited blank/control check, not full grapheme or display validation.
+    return visible
 end
 function Pipeline.new(deps, maxConcurrent, supplemental)
     assert(type(maxConcurrent)=="number" and maxConcurrent>=1 and maxConcurrent<=32 and maxConcurrent%1==0)

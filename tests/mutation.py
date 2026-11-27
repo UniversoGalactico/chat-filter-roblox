@@ -132,7 +132,7 @@ MUTANTS = [
     "context_mute",
     "ContextPolicy.lua",
     "regression.lua",
-    "if sender:GetAttribute(\"ChatFilterMuted\") == true then",
+    "if muted ~= nil and muted ~= false then",
     "if false then"
   ],
   [

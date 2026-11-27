@@ -21,7 +21,9 @@ function ContextPolicy.new(config)
         scopes[channel] = attribute
     end
     return function(sender, receiver, channelName)
-        if sender:GetAttribute("ChatFilterMuted") == true then return false, "muted" end
+        local muted = sender:GetAttribute("ChatFilterMuted")
+        -- A missing attribute is normal. Unexpected values indicate a broken server policy.
+        if muted ~= nil and muted ~= false then return false, "muted" end
         local attribute = scopes[channelName]
         if attribute then
             -- Only server-owned gameplay groups, never a substitute for platform permissions.
