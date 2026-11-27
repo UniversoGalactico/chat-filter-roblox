@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - run: lua5.4 tests/regression.lua && lua5.4 tests/policy_examples.lua && lua5.4 tests/adapter.lua && lua5.4 tests/studio_mock.lua
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/gate_campaign.lua && lua5.4 tests/policy_examples.lua && lua5.4 tests/adapter.lua && lua5.4 tests/studio_mock.lua
       - run: python3 tests/studio/verify_model.py
       - name: Targeted mutation tests (temporary copies)
         run: python3 tests/mutation.py
@@ -40,6 +40,7 @@ jobs:
       - name: Run pure tests in Luau
         run: |
           "$RUNNER_TEMP/luau/luau" tests/regression.lua
+          "$RUNNER_TEMP/luau/luau" tests/gate_campaign.lua
           "$RUNNER_TEMP/luau/luau" tests/policy_examples.lua
       - name: Run adapter and Studio doubles with native Luau
         run: |
