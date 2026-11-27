@@ -30,6 +30,7 @@ local function finite(n: any): boolean
  return type(n)=="number" and n==n and math.abs(n)<math.huge
 end
 local function integer(n: any): boolean return finite(n) and n%1==0 end
+local function typeName(v: any): string return typeof(v) end
 local function plain(t: any): boolean return type(t)=="table" and getmetatable(t)==nil end
 local function nameValid(n: any): boolean
  return type(n)=="string" and #n>0 and #n<=64 and utf8.len(n)~=nil and string.find(n,"%c")==nil
@@ -93,7 +94,7 @@ local function charge(b: Bucket,q: Quota,now: number)
 end
 local function validSubject(subject: any): boolean
  local t=type(subject)
- return t=="table" or typeof(subject)=="Instance" or
+ return t=="table" or typeName(subject)=="Instance" or
   (integer(subject) and math.abs(subject)<=MAX_COUNT) or (t=="string" and #subject>0 and #subject<=128)
 end
 local COMMON: {[string]: boolean}={Type=true,Optional=true}
@@ -165,7 +166,7 @@ local function compileRule(r: any, depth: number, budget: {number}): Argument
   assert(finite(r.MaxAbs) and r.MaxAbs>=0 and r.MaxAbs<=1e30,"INVALID_VECTOR_BOUND")
   out.MaxAbs=r.MaxAbs
  elseif kind=="Instance" then
-  assert(nameValid(r.Class) and typeof(r.Ancestor)=="Instance","INVALID_INSTANCE_RULE")
+  assert(nameValid(r.Class) and typeName(r.Ancestor)=="Instance","INVALID_INSTANCE_RULE")
   out.Class,out.Ancestor=r.Class,r.Ancestor
  end
  return out
@@ -183,12 +184,12 @@ local function validArg(v: any, r: Argument, budget: Budget): boolean
   return budget.Bytes<=16384 and utf8.len(v)~=nil and (r.Choices==nil or table.find(r.Choices,v)~=nil)
  elseif kind=="boolean" then return type(v)=="boolean"
  elseif kind=="Vector2" or kind=="Vector3" then
-  if typeof(v)~=kind then return false end
+  if typeName(v)~=kind then return false end
   local max=r.MaxAbs :: number
   return finite(v.X) and math.abs(v.X)<=max and finite(v.Y) and math.abs(v.Y)<=max
    and (kind=="Vector2" or (finite(v.Z) and math.abs(v.Z)<=max))
  elseif kind=="Color3" then
-  return typeof(v)=="Color3" and finite(v.R) and v.R>=0 and v.R<=1
+  return typeName(v)=="Color3" and finite(v.R) and v.R>=0 and v.R<=1
    and finite(v.G) and v.G>=0 and v.G<=1 and finite(v.B) and v.B>=0 and v.B<=1
  elseif kind=="buffer" then
   if typeof(v)~="buffer" then return false end
@@ -196,15 +197,15 @@ local function validArg(v: any, r: Argument, budget: Budget): boolean
   budget.Bytes+=length
   return length<=(r.MaxBytes :: number) and budget.Bytes<=16384
  elseif kind=="Instance" then
-  if typeof(v)~="Instance" then return false end
+  if typeName(v)~="Instance" then return false end
   local ok,allowed=pcall(function()
    return v:IsA(r.Class :: string) and v:IsDescendantOf(r.Ancestor :: Instance)
   end)
   return ok and allowed==true
  end
  if not plain(v) then return false end
- local active=budget.Active
- if active==nil then active={};budget.Active=active end
+ local active: {[any]: boolean}=budget.Active or {}
+ budget.Active=active
  if active[v] then return false end
  active[v]=true
  if kind=="record" then

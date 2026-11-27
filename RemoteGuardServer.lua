@@ -9,6 +9,7 @@ local MAX_COUNT=2^53-1
 
 -- Check-mode handlers must finish synchronously. Unlike Begin-mode handlers,
 -- they have no in-flight reservation; allowing a yield would defeat that limit.
+local function typeName(v: any): string return typeof(v) end
 local function synchronous(fn: any,...: any): ({[any]: any}?,string?)
  local thread=coroutine.create(fn)
  local results=table.pack(coroutine.resume(thread,...))
@@ -32,7 +33,7 @@ function RemoteGuardServer.new(config: any): any
  local stats: {[string]: number}={InvalidPlayer=0,HandlerErrors=0,HandlerYields=0,StaleCompletions=0,Reaped=0}
  local function bump(key: string) stats[key]=math.min(MAX_COUNT,stats[key]+1) end
  local function validPlayer(player: any): boolean
-  return typeof(player)=="Instance" and player:IsA("Player") and player.Parent==Players
+  return typeName(player)=="Instance" and player:IsA("Player") and player.Parent==Players
    and not departed[player] and Players:GetPlayerByUserId(player.UserId)==player
  end
  local removing=Players.PlayerRemoving:Connect(function(player: Player)
