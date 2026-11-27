@@ -1,87 +1,72 @@
--- MANUAL STUDIO-ONLY integration aid. Never install in a production experience.
--- No custom transport, no player text logging, no automatic message sends.
-local RunService=game:GetService("RunService")
-if not RunService:IsStudio() or script:GetAttribute("RunChatFilterSmoke")~=true then return end
+-- TEST ONLY. Place beside ChatFilter, DeliveryGate and ContextPolicy in ServerScriptService.
+local RunService = game:GetService("RunService")
+if not RunService:IsStudio() then return end
+local Players = game:GetService("Players")
+local Chat = game:GetService("TextChatService")
+local Filter = require(script.Parent.ChatFilter)
+local Gate = require(script.Parent.DeliveryGate)
+local Context = require(script.Parent.ContextPolicy)
 
-local Players=game:GetService("Players")
-local TextChatService=game:GetService("TextChatService")
-local ServerScriptService=game:GetService("ServerScriptService")
-local NAME="ChatFilterSmoke"
-local GROUP="ChatFilterSmokeGroup"
-local modules=assert(ServerScriptService:WaitForChild("ServerModules",10),"missing test modules")
-local config=require(assert(modules:WaitForChild("ChatConfiguration",10)))
-assert(config.Mode=="native","disable automatic hooks for this isolated test")
-assert(type(config.ScopeAttributes)=="table" and config.ScopeAttributes[NAME]==GROUP,
-    "configure ScopeAttributes.ChatFilterSmoke = 'ChatFilterSmokeGroup' in the test place")
-assert(not TextChatService:FindFirstChild(NAME,true),"test channel already exists")
-local filter=require(assert(modules:WaitForChild("ChatFilter",10)))
-local predicate,stop,snapshot=filter.CreatePredicate("context")
-
-local channel=Instance.new("TextChannel")
-channel.Name=NAME
-local active=true
-local assigned=setmetatable({},{__mode="k"})
-local inFlight=setmetatable({},{__mode="k"})
-local joinIndex=0
-channel.ShouldDeliverCallback=function(message,recipient)
-    if not active then return false end
-    return predicate(message,recipient,channel)
+-- F5: immediate checks with synthetic inputs; no message content or network calls.
+local gate = Gate.new({MessagesPerSecond=1, DecisionTTL=2, MaxCachedMessages=4})
+assert(gate:Admit("A","one",0))
+assert(gate:Admit("A","one",0.1))
+assert(not gate:Admit("A","two",0.1))
+assert(gate:Admit("A","three",1))
+gate:Clear()
+assert(gate:Admit("A","two",0))
+local context = Context.new({ScopeAttributes={Test="Group"}})
+local function mock(group)
+    return {GetAttribute=function(_,name) if name=="Group" then return group end end}
 end
-channel.Parent=TextChatService
+assert(context(mock("A"),mock("A"),"Test"))
+assert(not context(mock("A"),mock("B"),"Test"))
+print("[ChatFilter TEST] PASS: 7 local checks. Native delivery is NOT yet verified.")
 
+-- Two clients: native delivery check. No automatic sends or custom transport.
+local NAME, GROUP = "ChatFilterTest", "ChatFilterTestGroup"
+assert(not Chat:FindFirstChild(NAME,true),"Test channel already exists")
+local controller = Filter.new({ScopeAttributes={[NAME]=GROUP}})
+local channel = Instance.new("TextChannel")
+channel.Name = NAME
+channel.Parent = Chat
+channel.ShouldDeliverCallback = controller:ForChannel(channel)
+local active, joined = true, 0
+local assigned = {}
 local function add(player)
-    if not active or player.Parent~=Players or assigned[player] or inFlight[player] then return end
-    if player:GetAttribute(GROUP)~=nil then
-        warn("[ChatFilter smoke] Existing test attribute; player skipped.")
+    if not active or player.Parent~=Players or assigned[player] then return end
+    if player:GetAttribute(GROUP)~=nil then warn("[TEST] Existing group attribute; skipped") return end
+    joined=joined+1
+    local group=joined==1 and "A" or "B"
+    assigned[player]=true
+    player:SetAttribute(GROUP,group)
+    local ok,source=pcall(function() return channel:AddUserAsync(player.UserId) end)
+    if not active or not assigned[player] or player.Parent~=Players then
+        if ok and source and source.Parent==channel then source:Destroy() end
         return
     end
-    inFlight[player]=true
-    joinIndex=joinIndex+1
-    local group=joinIndex<=2 and "A" or "B"
-    player:SetAttribute(GROUP,group)
-    assigned[player]=true
-    task.spawn(function()
-        local ok,source=pcall(function()
-            return channel:AddUserAsync(player.UserId)
-        end)
-        inFlight[player]=nil
-        if not active or player.Parent~=Players then
-            if ok and source and source.Parent==channel then source:Destroy() end
-            return
-        end
-        if not ok or not source then
-            warn("[ChatFilter smoke] Native membership unavailable; no bypass attempted.")
-        else
-            print("[ChatFilter smoke] Native membership created or returned.")
-        end
-    end)
+    if not ok or not source then warn("[TEST] Native membership unavailable; stop integration test") end
 end
-
-local joined=Players.PlayerAdded:Connect(add)
-local departing=Players.PlayerRemoving:Connect(function(player)
-    if assigned[player] then
-        assigned[player]=nil
-        player:SetAttribute(GROUP,nil)
-    end
+local added=Players.PlayerAdded:Connect(add)
+local removing=Players.PlayerRemoving:Connect(function(player)
+    if assigned[player] then assigned[player]=nil player:SetAttribute(GROUP,nil) end
 end)
-local report=script:GetAttributeChangedSignal("SnapshotRequest"):Connect(function()
-    if not active then return end
-    local counts=snapshot()
-    print(string.format("[ChatFilter smoke] callback decisions: allow=%d scope=%d mute=%d rate=%d identity=%d error=%d",
-        counts.allow,counts.scope,counts.muted,counts.rate_limit,counts.invalid_identity,counts.policy_error))
+for _,player in ipairs(Players:GetPlayers()) do task.spawn(add,player) end
+local stats=script:GetAttributeChangedSignal("ShowCounts"):Connect(function()
+    local c=controller:GetCounts()
+    print("[TEST] allow",c.allow,"scope",c.scope,"rate",c.rate_limit,"errors",c.policy_error,"identity",c.invalid_identity)
 end)
 script.Destroying:Connect(function()
     if not active then return end
     active=false
-    joined:Disconnect()
-    departing:Disconnect()
-    report:Disconnect()
-    stop()
+    added:Disconnect()
+    removing:Disconnect()
+    stats:Disconnect()
+    controller:Destroy()
     channel:Destroy()
     for player in pairs(assigned) do
         if player.Parent==Players then player:SetAttribute(GROUP,nil) end
     end
     table.clear(assigned)
 end)
-for _,player in ipairs(Players:GetPlayers()) do add(player) end
-print("[ChatFilter smoke] Send only benign test messages manually in ChatFilterSmoke. Change SnapshotRequest to inspect aggregate decisions.")
+print("[TEST] Two-client check: select ChatFilterTest; change B to A and repeat. Change ShowCounts to print totals.")

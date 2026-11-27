@@ -1,15 +1,8 @@
-# Manual Roblox Studio smoke test (not run in CI)
+# Quick Studio test (not yet run on Roblox)
 
-This script is an optional integration aid for a **disposable private Studio place**, not part of production installation. It never logs or reads message text. Do not test with unsuspecting players. It does not prove that Roblox permissions or actual message delivery work.
+1. Download [ChatFilterTest.rbxmx](ChatFilterTest.rbxmx). In a blank private place, insert it into ServerScriptService (Explorer > right click > Insert from File). Alternatively paste the three core modules and Smoke.server.lua as sibling scripts.
+2. Press F5 and inspect server Output for PASS: 7 local checks. This does not verify Roblox chat delivery.
+3. For delivery, stop and enable TextChatService > ChannelTabsConfiguration > Enabled. Start Test > Server & Clients with 2 clients. Select ChatFilterTest in native chat and send a benign test message from A. B should not receive it. Set the second player's ChatFilterTestGroup attribute to A in the server Explorer, then send another message; B may receive it subject to native permissions. Change ShowCounts on Smoke to see fixed aggregate counters.
+4. If native membership, tab or callbacks are unavailable, mark integration unverified. In platform-integrated chat, use the official TextChannelWindow targeted at the test channel if necessary (see Roblox documentation). Never circumvent permissions.
 
-1. Install the v2 server modules, remove all v1 chat transport/UI scripts, and keep native TextChatService enabled. Leave ChatConfiguration.Mode at "native" so no automatic hooks are installed. Set ScopeAttributes = {ChatFilterSmoke = "ChatFilterSmokeGroup"} in the test configuration.
-2. Put Smoke.server.lua in ServerScriptService as a Script. Set its Boolean attribute RunChatFilterSmoke to true in Studio. The script will exit in any non-Studio server or without the explicit flag.
-3. Set TextChatService.PlatformIntegratedChat to Enabled in Studio. Start a multi-client session with three test players. The script creates only ChatFilterSmoke, not RBXGeneral or any reserved channel, and attempts native AddUserAsync. If Roblox denies membership or the local test accounts do not have chat, stop: do not circumvent the restriction.
-4. Use the native chat window (select the test channel) or a native TextChannelWindow targeted to ChatFilterSmoke. Send a short benign message manually. The first two joined test players receive group A and the third group B; actual native permissions still apply. Check in client windows whether the same-group peer sees the message and the other group does not. The sender can see a local echo even if delivery is denied.
-5. In server Studio Explorer, change the third player's ChatFilterSmokeGroup to A; send another benign message after the quota interval. Then remove the attribute and repeat. Observe recipient behavior and check native permissions separately.
-6. Change the script's SnapshotRequest attribute to a new value to print only fixed aggregate counts. Allow is a local predicate result, **not proof of receipt**. If all counters remain zero despite a valid send, the callback may not be invoked in that rollout configuration. Do not ship context mode until actual callback and delivery behavior are established.
-7. Remove the test script or stop the session. It disconnects its signals, stops the policy and destroys its own channel on destruction. Never distribute the smoke script with production modules.
-
-Record the Studio version, PlatformIntegratedChat setting, number of test clients, expected and observed client delivery, and aggregate counters. Do not include chat logs, player IDs, or real conversations.
-
-The public field extension is separate and requires a private published test universe with real MemoryStore/TextService access, as described in the main verification checklist.
+Stop the session and remove the test model. It never reads or logs conversation text and exits outside Studio. Do not ship it.
