@@ -15,8 +15,10 @@ local REASONS = {
 local MAX_COUNT = 2^53 - 1
 
 function ChatFilter.new(options)
-    options = options or {}
+    if options == nil then options = {} end
     assert(type(options) == "table" and getmetatable(options) == nil, "options must be a plain table")
+    local known = {MessagesPerSecond=true, DecisionTTL=true, MaxCachedMessages=true, ScopeAttributes=true, LegacyText=true}
+    for key in pairs(options) do assert(known[key], "unknown ChatFilter option") end
     assert(options.LegacyText == nil or type(options.LegacyText) == "boolean", "LegacyText must be boolean")
     local gate = DeliveryGate.new({
         MessagesPerSecond = options.MessagesPerSecond == nil and 3 or options.MessagesPerSecond,
