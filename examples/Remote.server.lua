@@ -1,17 +1,18 @@
--- Create a RemoteEvent named BuyItem under ReplicatedStorage first.
-local Players=game:GetService("Players")
+-- Two ModuleScripts (RemoteGuard, RemoteGuardServer) in ServerScriptService.
+-- Create an owned RemoteEvent "BuyItem" in ReplicatedStorage.
+local RemoteGuardServer=require(game.ServerScriptService.RemoteGuardServer)
 local remote=game:GetService("ReplicatedStorage"):WaitForChild("BuyItem")
-local RemoteGuard=require(game.ServerScriptService.RemoteGuard)
-local guard=RemoteGuard.new({
- Global={Limit=20,Window=1},
+local guard=RemoteGuardServer.new({
+ Global={Limit=20,Window=1},Server={Limit=300,Window=1},
  Actions={Buy={Quota={Limit=3,Window=1},Args={{Type="string",MaxBytes=64}},
-  Authorize=function(player,itemId)
-   return player.Parent==Players and player:GetAttribute("ShopOpen")==true
-  end}},
+  Authorize=function(player)return player:GetAttribute("ShopOpen")==true end}},
 })
-remote.OnServerEvent:Connect(function(player,...)
- if not guard:Check(player,"Buy",...) then return end
- local itemId=...
- -- Integrate your authoritative shop transaction here. This example grants nothing.
-end)
-Players.PlayerRemoving:Connect(function(player) guard:Forget(player) end)
+local connection=remote.OnServerEvent:Connect(guard:Wrap("Buy",function(player,_,itemId)
+ -- Perform a synchronous authoritative shop transaction here.
+ -- Verify actual price, balance, stock, distance, ownership and current state.
+ -- No grants or simulated economy in this example.
+end))
+local function stop()
+ connection:Disconnect();guard:Destroy()
+end
+-- Call stop from your match/application owner's explicit teardown.

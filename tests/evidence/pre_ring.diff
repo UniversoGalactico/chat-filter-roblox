@@ -1,0 +1,76 @@
+--- RemoteGuardRoblox.lua
++++ pre_ring.lua
+@@ -13,7 +13,7 @@
+ type Subject = {Global: Bucket, Actions: {[string]: Bucket}, Last: number, Live: boolean, InFlight: number, Pending: {[string]: number}}
+ type Lease = {State: Subject, Action: string}
+ export type Token = {}
+-type Budget = {Nodes: number, Bytes: number, Active: {[any]: boolean}?}
++type Budget = {Nodes: number, Bytes: number, Active: {[any]: boolean}}
+ export type Guard = {
+  Check: (self: Guard, subject: any, action: string, ...any) -> (boolean, string?, number?),
+  Begin: (self: Guard, subject: any, action: string, ...any) -> (Token?, string?, number?),
+@@ -66,25 +66,13 @@
+  return math.max(0,-residual)
+ end
+ local function waitFor(b: Bucket, q: Quota, now: number): number
+- if b.Count==0 then return 0 end
+- local wait=remaining(now,b.Times[b.Head],q.Window)
+- if wait>0 then return if b.Count==q.Limit then wait else 0 end
+- -- FIFO order is monotone. Keep old scalar slots for reuse, not references to
+- -- requests. An expired prefix can be dropped with O(log Limit) comparisons.
+- local last=(b.Head+b.Count-2)%q.Limit+1
+- if remaining(now,b.Times[last],q.Window)==0 then
+-  b.Head,b.Count=1,0
+-  return 0
+- end
+- local low,high=1,b.Count-1
+- while low<high do
+-  local mid=math.floor((low+high)/2)
+-  local index=(b.Head+mid-1)%q.Limit+1
+-  if remaining(now,b.Times[index],q.Window)==0 then low=mid+1 else high=mid end
+- end
+- b.Head=(b.Head+low-1)%q.Limit+1
+- b.Count-=low
+- return 0
++ while b.Count>0 and remaining(now,b.Times[b.Head],q.Window)==0 do
++  b.Times[b.Head]=nil
++  b.Head=b.Head%q.Limit+1
++  b.Count-=1
++ end
++ if b.Count<q.Limit then return 0 end
++ return remaining(now,b.Times[b.Head],q.Window)
+ end
+ local function charge(b: Bucket,q: Quota,now: number)
+  local i=(b.Head+b.Count-1)%q.Limit+1
+@@ -202,11 +190,8 @@
+   end)
+   return ok and allowed==true
+  end
+- if not plain(v) then return false end
+- local active=budget.Active
+- if active==nil then active={};budget.Active=active end
+- if active[v] then return false end
+- active[v]=true
++ if not plain(v) or budget.Active[v] then return false end
++ budget.Active[v]=true
+  if kind=="record" then
+   local children=r.Fields :: {[string]: Argument}
+   for k in next,v do
+@@ -234,7 +219,7 @@
+   end
+   if count~=largest then return false end
+  end
+- active[v]=nil
++ budget.Active[v]=nil
+  return true
+ end
+ local function invoke(fn: any,...: any): (boolean,any)
+@@ -343,7 +328,7 @@
+   end
+   local n=select("#",...)
+   if n>#a.Args then return false,"ARG_COUNT",nil,nil end
+-  local budget: Budget={Nodes=0,Bytes=0}
++  local budget: Budget={Nodes=0,Bytes=0,Active={}}
+   for i,r in ipairs(a.Args) do
+    local value: any=if i<=n then select(i,...) else nil
+    if not validArg(value,r,budget) then return false,"INVALID_ARGUMENT",i,nil end

@@ -9,7 +9,7 @@ permissions:
 jobs:
   regression:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -19,14 +19,24 @@ jobs:
           curl -fsSL https://github.com/luau-lang/luau/releases/download/0.734/luau-ubuntu.zip -o "$RUNNER_TEMP/luau.zip"
           echo "3e514385267c6606f1ff6824bd9d21708a5dd272ea91ab7355a2743b20d45d45  $RUNNER_TEMP/luau.zip" | sha256sum -c
           unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau"
-          chmod +x "$RUNNER_TEMP/luau/luau" "$RUNNER_TEMP/luau/luau-analyze"
+          chmod +x "$RUNNER_TEMP/luau/luau" "$RUNNER_TEMP/luau/luau-analyze" "$RUNNER_TEMP/luau/luau-compile"
       - name: Strict analysis
-        run: |
-          { echo 'local task: any = nil'; tail -n +2 RemoteGuardRoblox.lua; } > "$RUNNER_TEMP/RemoteGuardRoblox.lua"
-          sed -i '1i--!strict' "$RUNNER_TEMP/RemoteGuardRoblox.lua"
-          "$RUNNER_TEMP/luau/luau-analyze" "$RUNNER_TEMP/RemoteGuardRoblox.lua"
-      - name: Regression
+        run: python3 tests/typecheck.py --analyzer "$RUNNER_TEMP/luau/luau-analyze"
+      - name: Regression and adapter doubles
         run: |
           for opt in 0 1 2; do
             python3 tests/run.py --luau "$RUNNER_TEMP/luau/luau" --optimization "$opt"
+            python3 tests/run_adapter.py --luau "$RUNNER_TEMP/luau/luau" --optimization "$opt"
           done
+      - name: Generated schema reference
+        run: python3 tests/schema_fuzz.py --luau "$RUNNER_TEMP/luau/luau" --schemas 128 --cases 64 --seed 38101 --optimization 2 --out "$RUNNER_TEMP/schema.json"
+      - name: Bounded reachable states
+        run: python3 tests/exhaustive.py --luau "$RUNNER_TEMP/luau/luau" --depth 6 --plans 8 --out "$RUNNER_TEMP/exhaustive.json"
+      - name: Selected mutation tests
+        run: python3 tests/mutation.py --luau "$RUNNER_TEMP/luau/luau" --compiler "$RUNNER_TEMP/luau/luau-compile"
+      - name: Compile examples and Studio scripts, verify model source
+        run: |
+          for file in examples/*.lua tests/studio_*.lua; do
+            "$RUNNER_TEMP/luau/luau-compile" "$file" >/dev/null
+          done
+          python3 tests/build_studio_model.py --out "$RUNNER_TEMP/RemoteGuardQuickTest.rbxmx"

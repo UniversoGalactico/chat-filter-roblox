@@ -1,0 +1,602 @@
+{
+  "source_sha256": "829cfa7d5fe3dcff4b296e9b1c69a033df4ef90d3bae36c35f79a44a0d43fa8a",
+  "campaign_sha256": "cbd2c203c32f48576ac3611c7fa043703cd37a291217934a0e8d7fe9af30a16e",
+  "tool_pins": {
+    "numeric_fuzz320.py": "5d4cf91db579d2097cac2d13b9a77bef0bbad54878a47ad493a5d502d6f3e4b0",
+    "binary64_320.py": "8995a1949fcc910986bcfe38a9b9c406410db3c25929c45233f1a250a6fe8253",
+    "runtime/linux/luau": "7741b96bd8fadb340965b7468dc4a2be8fe41247b8219bd8d4a7e80f16b40625",
+    "vm_binary64_320.py": "ba264eb5b102209ab0dbacc7c189a8fcd1536f08ed0805d1f88b4647be370af6"
+  },
+  "seed": 32071,
+  "boundary_cases": 24000,
+  "rounded_early_boundary_witnesses": 4658,
+  "runs": [
+    {
+      "optimization": 0,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13440,
+          "differences": 4658
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": [
+        [
+          "boundary_admission",
+          "7"
+        ],
+        [
+          "boundary_reason",
+          "7"
+        ],
+        [
+          "boundary_positive_wait",
+          "7"
+        ],
+        [
+          "boundary_admission",
+          "13"
+        ],
+        [
+          "boundary_reason",
+          "13"
+        ],
+        [
+          "boundary_positive_wait",
+          "13"
+        ],
+        [
+          "boundary_admission",
+          "14"
+        ],
+        [
+          "boundary_reason",
+          "14"
+        ],
+        [
+          "boundary_positive_wait",
+          "14"
+        ],
+        [
+          "boundary_admission",
+          "22"
+        ],
+        [
+          "boundary_reason",
+          "22"
+        ],
+        [
+          "boundary_positive_wait",
+          "22"
+        ],
+        [
+          "boundary_admission",
+          "23"
+        ],
+        [
+          "boundary_reason",
+          "23"
+        ],
+        [
+          "boundary_positive_wait",
+          "23"
+        ],
+        [
+          "boundary_admission",
+          "25"
+        ],
+        [
+          "boundary_reason",
+          "25"
+        ],
+        [
+          "boundary_positive_wait",
+          "25"
+        ],
+        [
+          "boundary_admission",
+          "28"
+        ],
+        [
+          "boundary_reason",
+          "28"
+        ],
+        [
+          "boundary_positive_wait",
+          "28"
+        ],
+        [
+          "boundary_admission",
+          "35"
+        ],
+        [
+          "boundary_reason",
+          "35"
+        ],
+        [
+          "boundary_positive_wait",
+          "35"
+        ],
+        [
+          "boundary_admission",
+          "40"
+        ],
+        [
+          "boundary_reason",
+          "40"
+        ],
+        [
+          "boundary_positive_wait",
+          "40"
+        ],
+        [
+          "boundary_admission",
+          "44"
+        ],
+        [
+          "boundary_reason",
+          "44"
+        ],
+        [
+          "boundary_positive_wait",
+          "44"
+        ],
+        [
+          "boundary_admission",
+          "52"
+        ],
+        [
+          "boundary_reason",
+          "52"
+        ],
+        [
+          "boundary_positive_wait",
+          "52"
+        ],
+        [
+          "boundary_admission",
+          "55"
+        ],
+        [
+          "boundary_reason",
+          "55"
+        ],
+        [
+          "boundary_positive_wait",
+          "55"
+        ]
+      ]
+    },
+    {
+      "optimization": 1,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13440,
+          "differences": 4658
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": [
+        [
+          "boundary_admission",
+          "7"
+        ],
+        [
+          "boundary_reason",
+          "7"
+        ],
+        [
+          "boundary_positive_wait",
+          "7"
+        ],
+        [
+          "boundary_admission",
+          "13"
+        ],
+        [
+          "boundary_reason",
+          "13"
+        ],
+        [
+          "boundary_positive_wait",
+          "13"
+        ],
+        [
+          "boundary_admission",
+          "14"
+        ],
+        [
+          "boundary_reason",
+          "14"
+        ],
+        [
+          "boundary_positive_wait",
+          "14"
+        ],
+        [
+          "boundary_admission",
+          "22"
+        ],
+        [
+          "boundary_reason",
+          "22"
+        ],
+        [
+          "boundary_positive_wait",
+          "22"
+        ],
+        [
+          "boundary_admission",
+          "23"
+        ],
+        [
+          "boundary_reason",
+          "23"
+        ],
+        [
+          "boundary_positive_wait",
+          "23"
+        ],
+        [
+          "boundary_admission",
+          "25"
+        ],
+        [
+          "boundary_reason",
+          "25"
+        ],
+        [
+          "boundary_positive_wait",
+          "25"
+        ],
+        [
+          "boundary_admission",
+          "28"
+        ],
+        [
+          "boundary_reason",
+          "28"
+        ],
+        [
+          "boundary_positive_wait",
+          "28"
+        ],
+        [
+          "boundary_admission",
+          "35"
+        ],
+        [
+          "boundary_reason",
+          "35"
+        ],
+        [
+          "boundary_positive_wait",
+          "35"
+        ],
+        [
+          "boundary_admission",
+          "40"
+        ],
+        [
+          "boundary_reason",
+          "40"
+        ],
+        [
+          "boundary_positive_wait",
+          "40"
+        ],
+        [
+          "boundary_admission",
+          "44"
+        ],
+        [
+          "boundary_reason",
+          "44"
+        ],
+        [
+          "boundary_positive_wait",
+          "44"
+        ],
+        [
+          "boundary_admission",
+          "52"
+        ],
+        [
+          "boundary_reason",
+          "52"
+        ],
+        [
+          "boundary_positive_wait",
+          "52"
+        ],
+        [
+          "boundary_admission",
+          "55"
+        ],
+        [
+          "boundary_reason",
+          "55"
+        ],
+        [
+          "boundary_positive_wait",
+          "55"
+        ]
+      ]
+    },
+    {
+      "optimization": 2,
+      "counts": {
+        "utf8": {
+          "checks": 5000,
+          "differences": 0
+        },
+        "oracle": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "first_admission": {
+          "checks": 24000,
+          "differences": 0
+        },
+        "sweep_boundary": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_admission": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "numeric_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_number": {
+          "checks": 8000,
+          "differences": 0
+        },
+        "boundary_positive_wait": {
+          "checks": 13440,
+          "differences": 4658
+        },
+        "boundary_reason": {
+          "checks": 24000,
+          "differences": 4658
+        },
+        "integer_acceptance": {
+          "checks": 16384,
+          "differences": 0
+        },
+        "direct_integer": {
+          "checks": 8000,
+          "differences": 0
+        }
+      },
+      "witnesses": [
+        [
+          "boundary_admission",
+          "7"
+        ],
+        [
+          "boundary_reason",
+          "7"
+        ],
+        [
+          "boundary_positive_wait",
+          "7"
+        ],
+        [
+          "boundary_admission",
+          "13"
+        ],
+        [
+          "boundary_reason",
+          "13"
+        ],
+        [
+          "boundary_positive_wait",
+          "13"
+        ],
+        [
+          "boundary_admission",
+          "14"
+        ],
+        [
+          "boundary_reason",
+          "14"
+        ],
+        [
+          "boundary_positive_wait",
+          "14"
+        ],
+        [
+          "boundary_admission",
+          "22"
+        ],
+        [
+          "boundary_reason",
+          "22"
+        ],
+        [
+          "boundary_positive_wait",
+          "22"
+        ],
+        [
+          "boundary_admission",
+          "23"
+        ],
+        [
+          "boundary_reason",
+          "23"
+        ],
+        [
+          "boundary_positive_wait",
+          "23"
+        ],
+        [
+          "boundary_admission",
+          "25"
+        ],
+        [
+          "boundary_reason",
+          "25"
+        ],
+        [
+          "boundary_positive_wait",
+          "25"
+        ],
+        [
+          "boundary_admission",
+          "28"
+        ],
+        [
+          "boundary_reason",
+          "28"
+        ],
+        [
+          "boundary_positive_wait",
+          "28"
+        ],
+        [
+          "boundary_admission",
+          "35"
+        ],
+        [
+          "boundary_reason",
+          "35"
+        ],
+        [
+          "boundary_positive_wait",
+          "35"
+        ],
+        [
+          "boundary_admission",
+          "40"
+        ],
+        [
+          "boundary_reason",
+          "40"
+        ],
+        [
+          "boundary_positive_wait",
+          "40"
+        ],
+        [
+          "boundary_admission",
+          "44"
+        ],
+        [
+          "boundary_reason",
+          "44"
+        ],
+        [
+          "boundary_positive_wait",
+          "44"
+        ],
+        [
+          "boundary_admission",
+          "52"
+        ],
+        [
+          "boundary_reason",
+          "52"
+        ],
+        [
+          "boundary_positive_wait",
+          "52"
+        ],
+        [
+          "boundary_admission",
+          "55"
+        ],
+        [
+          "boundary_reason",
+          "55"
+        ],
+        [
+          "boundary_positive_wait",
+          "55"
+        ]
+      ]
+    }
+  ],
+  "elapsed_seconds": 4.193602972000008,
+  "scope": "finite arithmetic, integer/number/UTF8 acceptance, exact represented quota expiry and sweep; bundled Luau CLI only, not formal or Roblox verification"
+}

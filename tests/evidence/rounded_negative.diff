@@ -1,0 +1,11 @@
+--- RemoteGuardRoblox.lua
++++ rounded_negative.lua
+@@ -63,7 +63,7 @@
+  if d<window then return window-d end
+  local z=d-now
+  local residual=(now-(d-z))+(-earlier-z)
+- return math.max(0,-residual)
++ return 0
+ end
+ local function waitFor(b: Bucket, q: Quota, now: number): number
+  if b.Count==0 then return 0 end
