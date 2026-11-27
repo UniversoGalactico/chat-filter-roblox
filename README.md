@@ -36,8 +36,18 @@ For manual server integration, `ChatFilter.CreatePredicate(mode)` returns `predi
 
 Native chat can still show a sender their own local echo even when delivery to others is denied. This library does not guarantee full Unicode normalization, contextual detection, evasion resistance, or moderation across unconfigured channels. In legacy_text mode, empty/unavailable text is denied with a one-time static diagnostic. No attempt is made to retrieve unavailable content. Switch to native mode before platform-integrated chat migration. The experimental context mode does not read text at all; no claim of post-migration compatibility is made until verified in Studio.
 
+## Optional one-way public fields (experimental, not chat)
+
+`PublicFieldService` is a separate server-only opt-in for short pet/item names or sign labels. It is never loaded by ChatServer. Do not use it for messages, replies, mail, phones, radios, text-based gameplay coordination, or any chat substitute. Native TextChatService is required for conversations.
+
+Install PublicFieldPipeline and PublicFieldService beside the other server modules only if needed. The caller must authenticate the Player and authorize the specific editable object on the server before calling `PublicFieldService.FilterAsync(player, raw)`. This function yields. Revalidate the same player, object, ownership and object generation after it returns; assign only the returned non-nil filtered label, without yielding between revalidation and assignment. Never show the raw input or fall back to it.
+
+The service applies a local 60-second attempt cooldown and a shared universe-wide MemoryStore atomic cooldown (61-second expiry), then uses Roblox TextService and GetNonChatStringForBroadcastAsync. The optional lexical policy is additional only. A failure in either service rejects the edit; stale results are discarded, and at most 16 calls run concurrently in a server. No player text is stored, logged or forwarded by this module. The short-lived MemoryStore key contains a user ID and random claim token solely for cooldown enforcement. This adds a service dependency and requires tests in a published test universe; every editable field in every place must share the gate.
+
+See [Roblox editable text rules](https://create.roblox.com/docs/chat/guidelines) and [rate-limited text surfaces](https://create.roblox.com/docs/ui/temporary-limits).
+
 ## Tests
 
-Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua` and `luau tests/regression.lua`. The two mock suites exercise the Roblox boundary and startup; the pure suite includes differential edit-distance checks for the signature index, deterministic malformed input, and randomized delivery interleavings checked against an independent scan-based admission reference. No Studio validation is claimed. CI also runs comparative synthetic benchmarks against the exact previous algorithm commits; medians are diagnostic, not a performance guarantee. See [security assumptions](SECURITY.md).
+Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua` and `luau tests/regression.lua`. The mock suites exercise the Roblox boundary, startup and optional public field service; additional pure public-field tests exercise yielding races; the pure suite includes differential edit-distance checks for the signature index, deterministic malformed input, and randomized delivery interleavings checked against an independent scan-based admission reference. No Studio validation is claimed. CI also runs comparative synthetic benchmarks against the exact previous algorithm commits; medians are diagnostic, not a performance guarantee. See [security assumptions](SECURITY.md).
 
 MIT license. Contributions welcome.

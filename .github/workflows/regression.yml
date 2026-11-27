@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua && lua5.4 tests/bootstrap.lua
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua && lua5.4 tests/bootstrap.lua && lua5.4 tests/public_fields.lua && lua5.4 tests/public_field_adapter.lua
       - name: Install checksum-pinned Luau 0.734
         run: |
           archive="$RUNNER_TEMP/luau-ubuntu.zip"
@@ -29,7 +29,9 @@ jobs:
           unzip -q "$archive" -d "$RUNNER_TEMP/luau"
           chmod +x "$RUNNER_TEMP/luau/luau"
       - name: Run pure tests in Luau
-        run: '"$RUNNER_TEMP/luau/luau" tests/regression.lua'
+        run: |
+          "$RUNNER_TEMP/luau/luau" tests/regression.lua
+          "$RUNNER_TEMP/luau/luau" tests/public_fields.lua
       - name: Compare baseline and current algorithms
         run: |
           mkdir -p tests/.baseline
