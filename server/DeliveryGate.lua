@@ -2,8 +2,15 @@
 local DeliveryGate = {}
 local MAX_CLOCK = 2^40
 local DEFAULT_SCOPE = {}
+-- IDs are trusted engine objects or finite primitive keys in pure tests.
 local function validSender(sender)
-    return sender ~= nil and (type(sender) ~= "number" or sender == sender)
+    local kind = type(sender)
+    if kind == "number" then return sender == sender and math.abs(sender) < math.huge end
+    return kind == "table" or kind == "userdata" or (kind == "string" and #sender > 0 and #sender <= 128)
+end
+
+local function ringSlot(head, count, capacity)
+    return (head - 1 + count) % capacity + 1
 end
 function DeliveryGate.new(config)
     local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
@@ -46,7 +53,7 @@ function DeliveryGate.new(config)
             oldBucket.count = oldBucket.count - 1
             if oldBucket.count == 0 then state.scopes[oldest.scope] = nil end
             state.order[state.head] = nil
-            state.head = state.head % capacity + 1
+            state.head = ringSlot(state.head, 1, capacity)
             state.count = state.count - 1
         end
         -- Never evict a live decision to admit a new message.
@@ -61,7 +68,7 @@ function DeliveryGate.new(config)
         local allow = #state.attempts < limit
         local reason = allow and "allow" or "rate_limit"
         if allow then state.attempts[#state.attempts + 1] = now end
-        local slot = (state.head - 1 + state.count) % capacity + 1
+        local slot = ringSlot(state.head, state.count, capacity)
         bucket = state.scopes[scope] -- an expired last entry may have removed the old bucket
         if not bucket then
             bucket = {ids={},count=0}

@@ -96,6 +96,11 @@ expect(gate:Admit("A", "badclock", -1), false, "negative clock")
 expect(gate:Admit("A", "badclock", 2^41), false, "clock precision bound")
 expect(gate:Admit(nil, "bad", 0), false, "nil sender")
 expect(gate:Admit(0/0, "bad", 0), false, "nan sender")
+for _,bad in ipairs({false,true,math.huge,-math.huge,"",string.rep("x",129),function() end}) do
+    expect(gate:Admit(bad,"bad",0),false,"unsupported sender key")
+    expect(gate:Admit("A","bad",2,bad),false,"unsupported scope key")
+    gate:Forget(bad)
+end
 expect(gate:Admit("A", string.rep("a",129), 0), false, "ID length")
 gate:Forget(nil)
 gate:Forget(0/0)
