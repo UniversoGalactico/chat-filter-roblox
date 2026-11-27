@@ -60,7 +60,7 @@ Los cambios de configuración requieren reiniciar el servidor. No se admiten ree
 
 ## Pruebas de aceptación en Studio
 
-Marca cada caso únicamente después de observarlo, con dos o tres clientes de prueba. No uses conversaciones reales para depurar.
+Marca cada caso únicamente después de observarlo, con dos o tres clientes de prueba. No uses conversaciones reales para depurar. El [script de ensayo opcional](../tests/studio/README.md) crea un canal aislado y muestra contadores agregados; no se instala en producción ni sustituye las comprobaciones visuales de entrega.
 
 - [ ] La interfaz, denuncia y bloqueo nativos siguen funcionando.
 - [ ] El modo native no instala callbacks ni necesita los módulos léxicos.

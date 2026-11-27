@@ -33,7 +33,7 @@ jobs:
       - name: Compile every shipped Luau source
         run: |
           chmod +x "$RUNNER_TEMP/luau/luau-compile"
-          for file in server/*.lua client/*.lua; do
+          for file in server/*.lua client/*.lua tests/studio/*.lua; do
             "$RUNNER_TEMP/luau/luau-compile" "$file" > /dev/null
           done
       - name: Run pure tests in Luau
