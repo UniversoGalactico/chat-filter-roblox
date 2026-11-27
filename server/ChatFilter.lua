@@ -7,6 +7,10 @@ local Config = require(script.Parent.ChatConfiguration)
 local Data = require(script.Parent.ProfanityData)
 
 local ChatFilter = {}
+-- Constant evaluator: the gate caches admission only, never a recipient's text verdict.
+local function admit()
+    return true, "allow"
+end
 function ChatFilter.CreatePredicate(mode)
     assert(mode == "context" or mode == "legacy_text", "invalid delivery mode")
     local evaluate
@@ -31,19 +35,21 @@ function ChatFilter.CreatePredicate(mode)
             end
             -- Trusted server-side gameplay restriction, never a substitute for Roblox permissions.
             if sender:GetAttribute("ChatFilterMuted") == true then return false end
-            return gate:Decide(sender, message.MessageId, os.clock(), function()
-                -- Content-independent mode must never even access the Text property.
-                if mode == "context" then return true, "allow" end
-                local text = message.Text
-                if type(text) ~= "string" or text == "" then
-                    if not warnedUnavailable then
-                        warnedUnavailable = true
-                        warn("[ChatFilter] Legacy text unavailable; disable legacy_text mode in Studio. No attempt to recover content.")
-                    end
-                    return false, "text_unavailable"
+            local admitted = gate:Decide(sender, message.MessageId, os.clock(), admit)
+            if not admitted then return false end
+            -- Content-independent mode must never even access the Text property.
+            if mode == "context" then return true end
+            -- A platform message's Text may vary by recipient. Admission is shared;
+            -- each lexical verdict is independent and no text/hash is cached.
+            local text = message.Text
+            if type(text) ~= "string" or text == "" then
+                if not warnedUnavailable then
+                    warnedUnavailable = true
+                    warn("[ChatFilter] Legacy text unavailable; disable legacy_text mode in Studio. No attempt to recover content.")
                 end
-                return evaluate(text)
-            end)
+                return false
+            end
+            return evaluate(text)
         end)
         return ok and allow == true
     end

@@ -33,6 +33,14 @@ local filter = assert(loadfile("server/ChatFilter.lua", "t", env))()
 local allow, stop = filter.CreatePredicate("legacy_text")
 local m = {TextSource={UserId=1}, MessageId="one", Text="hello"}
 assert(allow(m,b) and allow(m,c))
+-- Same platform MessageId, different recipient-visible content.
+m.Text = "IDIOTA"
+assert(not allow(m,c), "cached admission must not grant a different text")
+m.Text = "hello"
+assert(allow(m,b), "denied variant must not poison another recipient")
+m.Text = ""
+assert(not allow(m,c), "unavailable variant must not reuse allow")
+m.Text = "hello"
 a.muted = true
 assert(not allow(m,b), "context restriction must precede cached allow")
 a.muted = false
@@ -43,7 +51,7 @@ assert(not allow(nil,b) and not allow({},b))
 assert(not allow(m,{UserId=99}))
 m = {TextSource={UserId=1}, MessageId="three", Text=""}
 assert(not allow(m,b), "legacy mode cannot evaluate unavailable text")
-assert(not allow(m,c) and warnings==1, "one static warning, cached denial")
+assert(not allow(m,c) and warnings==1, "one static warning, independent denial")
 onRemoving(a)
 assert(not allow(m,b), "PlayerRemoving before Parent changes")
 assert(not allow({TextSource={UserId=2},MessageId="other",Text="hello"},a), "departing receiver")
