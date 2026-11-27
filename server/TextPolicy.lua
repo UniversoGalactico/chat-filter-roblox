@@ -57,22 +57,31 @@ local function tokenize(text, maxTokens, maxTokenBytes)
     return tokens
 end
 
--- One edit (insert/delete/substitute), ASCII tokens only. Linear time, constant space.
-local function oneEdit(a, b)
-    if math.abs(#a - #b) > 1 then return false end
-    if #a > #b then a, b = b, a end
-    local i, j, edits = 1, 1, 0
-    while i <= #a and j <= #b do
-        if a:byte(i) == b:byte(j) then
-            i, j = i + 1, j + 1
-        else
-            edits = edits + 1
-            if edits > 1 then return false end
-            if #a == #b then i = i + 1 end
-            j = j + 1
-        end
+-- A one-edit index for ASCII words of length 6..32:
+--   exact shorter word in the deletion index => one deletion
+--   deleting one byte of a longer input hits a word => one insertion
+--   same-position masked signature => one substitution
+-- No candidate scan, no edit-distance matrix, and no approximate hash collisions.
+local function removeAt(word, i)
+    return word:sub(1,i-1) .. word:sub(i+1)
+end
+local function maskAt(word, i)
+    return word:sub(1,i-1) .. "\0" .. word:sub(i+1)
+end
+local function isFuzzyWord(word)
+    return #word >= 6 and #word <= 32 and word:match("^[a-z]+$") ~= nil
+end
+local function denseArray(list, limit)
+    assert(type(list) == "table" and getmetatable(list) == nil, "policy list must be a plain array")
+    local length = #list
+    assert(length <= limit, "too many policy entries")
+    local count = 0
+    for key in pairs(list) do
+        assert(type(key) == "number" and key % 1 == 0 and key >= 1 and key <= length, "invalid policy array index")
+        count = count + 1
     end
-    return edits + (#b - j + 1) <= 1
+    assert(count == length, "sparse policy array")
+    return list
 end
 
 local function boundedInt(value, lo, hi)
@@ -85,10 +94,10 @@ function TextPolicy.new(config, data)
     local maxTokens = boundedInt(config.MaxTokens, 1, 128)
     local maxTokenBytes = boundedInt(config.MaxTokenBytes, 1, 128)
     local fuzzy = config.EnableFuzzy == true
-    local words, allowed, phrases, symbols, fuzzyByLength = {}, {}, {}, {}, {}
+    local words, allowed, phraseRoot, symbols = {}, {}, {}, {}
+    local fuzzyWords, deletions, substitutions = {}, {}, {}
     local function load(list, sink, single)
-        assert(type(list) == "table" and #list <= 256, "too many policy entries")
-        for _, raw in ipairs(list) do
+        for _, raw in ipairs(denseArray(list, 256)) do
             assert(type(raw) == "string" and #raw <= maxBytes, "invalid policy entry")
             local tokens = tokenize(raw, maxTokens, maxTokenBytes)
             assert(tokens and #tokens > 0 and (not single or #tokens == 1), "invalid normalized policy entry")
@@ -98,16 +107,26 @@ function TextPolicy.new(config, data)
     load(data.Words, function(word)
         if not words[word] then
             words[word] = true
-            if #word >= 6 and word:match("^[a-z]+$") then
-                fuzzyByLength[#word] = fuzzyByLength[#word] or {}
-                table.insert(fuzzyByLength[#word], word)
+            if fuzzy and isFuzzyWord(word) then
+                fuzzyWords[word] = true
+                for i = 1, #word do
+                    deletions[removeAt(word, i)] = true
+                    substitutions[maskAt(word, i)] = true
+                end
             end
         end
     end, true)
     load(data.AllowWords, function(word) allowed[word] = true end, true)
-    load(data.Phrases, function(phrase) phrases[#phrases + 1] = " " .. phrase .. " " end, false)
-    assert(type(data.BlockSymbols) == "table" and #data.BlockSymbols <= 32, "too many symbols")
-    for _, symbol in ipairs(data.BlockSymbols) do
+    -- Token trie; phrase matching never treats a substring of a word as a phrase.
+    load(data.Phrases, function(_, tokens)
+        local node = phraseRoot
+        for _, token in ipairs(tokens) do
+            if not node[token] then node[token] = {} end
+            node = node[token]
+        end
+        node[true] = true -- boolean key cannot collide with string tokens
+    end, false)
+    for _, symbol in ipairs(denseArray(data.BlockSymbols, 32)) do
         assert(type(symbol) == "string" and #symbol > 0 and #symbol <= 32 and utf8.len(symbol), "invalid symbol")
         symbols[#symbols + 1] = symbol
     end
@@ -119,17 +138,23 @@ function TextPolicy.new(config, data)
         for _, symbol in ipairs(symbols) do
             if text:find(symbol, 1, true) then return false, "symbol" end
         end
-        local padded = " " .. table.concat(tokens, " ") .. " "
-        for _, phrase in ipairs(phrases) do
-            if padded:find(phrase, 1, true) then return false, "phrase" end
+        for i = 1, #tokens do
+            local node = phraseRoot
+            for j = i, #tokens do
+                node = node[tokens[j]]
+                if not node then break end
+                if node[true] then return false, "phrase" end
+            end
         end
         for _, token in ipairs(tokens) do
             -- Explicit exact blocks take precedence over accidental allow-list conflicts.
             if words[token] then return false, "word" end
-            if fuzzy and not allowed[token] and #token >= 6 and token:match("^[a-z]+$") then
-                for len = #token - 1, #token + 1 do
-                    for _, word in ipairs(fuzzyByLength[len] or {}) do
-                        if oneEdit(token, word) then return false, "fuzzy" end
+            if fuzzy and not allowed[token] and #token >= 6 and #token <= 33
+                and token:match("^[a-z]+$") then
+                if deletions[token] then return false, "fuzzy" end
+                for i = 1, #token do
+                    if fuzzyWords[removeAt(token,i)] or substitutions[maskAt(token,i)] then
+                        return false, "fuzzy"
                     end
                 end
             end

@@ -12,7 +12,7 @@ ChatFilter is supplemental, not a replacement for Roblox safety mechanisms.
 
 ## Resource and lifecycle properties
 
-- Every lexical input is bounded before normalization. Token count and token size are also bounded. Fuzzy matching is off by default and limited to one ASCII edit.
+- Every lexical input is bounded before normalization. Token count and token size are also bounded. Fuzzy matching is off by default and limited to one ASCII edit against dictionary words of 6–32 bytes. Signature indexes bound work by the input length rather than scanning the configured dictionary. Exact matching is available for longer configured words.
 - Each live sender has a fixed-size cache of message admission decisions, a fixed-capacity FIFO expiry ring and a bounded sliding-window admission list. The admission engine accepts no evaluator callback and cannot yield through user code. Duplicate recipient callbacks reuse admission, never a text verdict. Lexical rules are checked independently per eligible recipient, since TextChatMessage.Text can differ between users. Unknown IDs during cache pressure are quarantined until an idle interval, rather than evicting a live denial.
 - The cache assumes the platform's MessageId uniquely identifies the same logical send and recipient callbacks occur within the configured decision TTL. A delayed callback after expiry can be treated as a new decision. No cross-server policy state is retained.
 - Only fixed admission result codes are cached. Player departure discards sender state; a leaving player is rejected even before Parent changes.

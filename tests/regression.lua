@@ -124,6 +124,41 @@ for i = 1, 2000 do
     local shouldBlock = #candidate >= 6 and distance(candidate,target) <= 1
     expect(synthetic(candidate), not shouldBlock, "differential fuzzy")
 end
+-- Compare the indexed fuzzy matcher against full edit distance on a multi-word corpus.
+-- Synthetic words only: this is an algorithm test, not a language-quality benchmark.
+local dictionary = {"abcdef", "abcdefg", "cabdef", "defabc", "abcdefghijklmnop", string.rep("z",32), string.rep("y",33)}
+local indexed = Policy.new(fuzzyConfig, {Words=dictionary, Phrases={"alpha beta", "alpha beta gamma", "beta gamma", "delta"}, AllowWords={"abxdef"}, BlockSymbols={}})
+local function referenceText(candidate)
+    if candidate=="abxdef" then return true end
+    for _, word in ipairs(dictionary) do
+        if candidate==word or (#word>=6 and #word<=32 and #candidate>=6 and #candidate<=33 and distance(candidate,word)<=1) then return false end
+    end
+    return true
+end
+local function checkCandidate(candidate)
+    expect(indexed(candidate),referenceText(candidate),"indexed fuzzy differential")
+end
+for _, word in ipairs(dictionary) do
+    checkCandidate(word)
+    for pos=1,#word do
+        checkCandidate(word:sub(1,pos-1)..word:sub(pos+1))
+        for byte=97,122 do
+            local c=string.char(byte)
+            checkCandidate(word:sub(1,pos-1)..c..word:sub(pos+1))
+            checkCandidate(word:sub(1,pos-1)..c..word:sub(pos))
+        end
+    end
+    checkCandidate(word.."x")
+end
+expect(indexed("alpha beta gamma"),false,"trie shared prefix")
+expect(indexed("alpha delta beta"),false,"single token phrase")
+expect(indexed("alpha—beta"),false,"trie punctuation")
+expect(indexed("alphabet beta"),true,"trie token boundary")
+expect(indexed("alpha bet"),true,"trie incomplete phrase")
+expect(indexed("abxdef"),true,"fuzzy allow")
+expect(pcall(Policy.new,config,{Words={[1]="aaa",[3]="bbb"},Phrases={},AllowWords={},BlockSymbols={}}),false,"sparse array")
+expect(pcall(Policy.new,config,{Words={foo="aaa"},Phrases={},AllowWords={},BlockSymbols={}}),false,"named array key")
+expect(pcall(Policy.new,config,{Words=setmetatable({},{}),Phrases={},AllowWords={},BlockSymbols={}}),false,"metatable array")
 -- Independent scan-based model; compare every result and reason with the FIFO.
 local function reference(state, id, now, limit, ttl, capacity)
     if now < state.last then return false, "clock_regression" end
