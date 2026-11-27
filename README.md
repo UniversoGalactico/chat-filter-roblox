@@ -50,6 +50,10 @@ The service applies a local 60-second attempt cooldown and a shared universe-wid
 
 See [Roblox editable text rules](https://create.roblox.com/docs/chat/guidelines) and [rate-limited text surfaces](https://create.roblox.com/docs/ui/temporary-limits).
 
+## Policy quality
+
+The default lexical list is intentionally small and exact-only; broad fuzzy matching is off. Hand-written multilingual fixtures guard ordinary gameplay vocabulary and document expected exact matches as well as non-matches. Lexical decisions cannot distinguish abusive use from quotations, reporting or game context, and do not detect all abuse. Never turn lexical matches into automatic punishment. Review your own game vocabulary before changing the list.
+
 ## Tests
 
 Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua`, `lua5.4 tests/bootstrap.lua` and `luau tests/regression.lua`. The mock suites exercise the Roblox boundary, startup and optional public field service; additional pure public-field tests exercise yielding races; the pure suite includes differential edit-distance checks for the signature index, deterministic malformed input, and randomized delivery interleavings checked against an independent scan-based admission reference. No Studio validation is claimed. CI also runs targeted mutation checks against temporary copies and comparative synthetic benchmarks against the exact previous algorithm commits; medians are diagnostic, not a performance guarantee. See [security assumptions](SECURITY.md).
