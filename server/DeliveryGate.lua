@@ -1,6 +1,7 @@
 -- Bounded, non-yielding message admission. No user callbacks or message content.
 local DeliveryGate = {}
 local MAX_CLOCK = 2^40
+local DEFAULT_SCOPE = {}
 local function validSender(sender)
     return sender ~= nil and (type(sender) ~= "number" or sender == sender)
 end
@@ -17,8 +18,10 @@ function DeliveryGate.new(config)
     function gate:Clear()
         for sender in pairs(senders) do senders[sender] = nil end
     end
-    function gate:Admit(sender, messageId, now)
-        if not validSender(sender) or type(messageId) ~= "string" or #messageId == 0 or #messageId > 128 then
+    function gate:Admit(sender, messageId, now, scope)
+        if scope == nil then scope = DEFAULT_SCOPE end
+        if not validSender(sender) or not validSender(scope)
+            or type(messageId) ~= "string" or #messageId == 0 or #messageId > 128 then
             return false, "invalid_identity"
         end
         if type(now) ~= "number" or not (now >= 0 and now <= MAX_CLOCK) then
@@ -26,18 +29,22 @@ function DeliveryGate.new(config)
         end
         local state = senders[sender]
         if not state then
-            state = { cache = {}, order = {}, attempts = {}, head = 1, count = 0, last = now }
+            state = { scopes = {}, order = {}, attempts = {}, head = 1, count = 0, last = now }
             senders[sender] = state
         end
         if now < state.last then return false, "clock_regression" end
         state.last = now
-        local cached = state.cache[messageId]
+        local bucket = state.scopes[scope]
+        local cached = bucket and bucket.ids[messageId]
         if cached and cached.expires > now then return cached.allow, cached.reason end
         -- Equal TTL plus monotone time makes expiry FIFO.
         while state.count > 0 do
             local oldest = state.order[state.head]
-            if state.cache[oldest].expires > now then break end
-            state.cache[oldest] = nil
+            if oldest.expires > now then break end
+            local oldBucket = state.scopes[oldest.scope]
+            oldBucket.ids[oldest.id] = nil
+            oldBucket.count = oldBucket.count - 1
+            if oldBucket.count == 0 then state.scopes[oldest.scope] = nil end
             state.order[state.head] = nil
             state.head = state.head % capacity + 1
             state.count = state.count - 1
@@ -55,8 +62,15 @@ function DeliveryGate.new(config)
         local reason = allow and "allow" or "rate_limit"
         if allow then state.attempts[#state.attempts + 1] = now end
         local slot = (state.head - 1 + state.count) % capacity + 1
-        state.order[slot] = messageId
-        state.cache[messageId] = { expires = now + ttl, allow = allow, reason = reason }
+        bucket = state.scopes[scope] -- an expired last entry may have removed the old bucket
+        if not bucket then
+            bucket = {ids={},count=0}
+            state.scopes[scope] = bucket
+        end
+        local decision = {scope=scope,id=messageId,expires=now+ttl,allow=allow,reason=reason}
+        state.order[slot] = decision
+        bucket.ids[messageId] = decision
+        bucket.count = bucket.count + 1
         state.count = state.count + 1
         return allow, reason
     end

@@ -5,7 +5,7 @@
 -- legacy_text: pre-platform-integrated TextChatService only.
 return {
     Mode = "native",
-    ChannelNames = { "RBXGeneral" }, -- explicitly owned callbacks only
+    ChannelNames = { "RBXGeneral" }, -- owned callbacks only; no other reserved RBX channels
     EnableFuzzy = false, -- opt in after measuring false positives
     MaxMessageBytes = 512,
     MaxTokens = 80,

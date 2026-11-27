@@ -1,16 +1,18 @@
 -- Optional supplemental delivery predicate; context mode never reads message text.
 -- No RemoteEvent, no manual text forwarding, no custom rendering, no raw chat logs.
 local Players = game:GetService("Players")
-local TextPolicy = require(script.Parent.TextPolicy)
 local DeliveryGate = require(script.Parent.DeliveryGate)
 local Config = require(script.Parent.ChatConfiguration)
-local Data = require(script.Parent.ProfanityData)
 
 local ChatFilter = {}
 function ChatFilter.CreatePredicate(mode)
     assert(mode == "context" or mode == "legacy_text", "invalid delivery mode")
     local evaluate
-    if mode == "legacy_text" then evaluate = TextPolicy.new(Config, Data) end
+    if mode == "legacy_text" then
+        local TextPolicy = require(script.Parent.TextPolicy)
+        local Data = require(script.Parent.ProfanityData)
+        evaluate = TextPolicy.new(Config, Data)
+    end
     local gate = DeliveryGate.new(Config)
     local leaving = setmetatable({}, { __mode = "k" })
     local removing = Players.PlayerRemoving:Connect(function(player)
@@ -18,11 +20,13 @@ function ChatFilter.CreatePredicate(mode)
         gate:Forget(player)
     end)
     local active, warnedUnavailable = true, false
-    local function predicate(message, recipient)
+    local function predicate(message, recipient, expectedChannel)
         if not active then return false end
         local ok, allow = pcall(function()
             local source = message.TextSource
-            if not source or not recipient then return false end
+            local channel = message.TextChannel
+            if not source or not recipient or not channel
+                or (expectedChannel and channel ~= expectedChannel) then return false end
             local sender = Players:GetPlayerByUserId(source.UserId)
             local receiver = Players:GetPlayerByUserId(recipient.UserId)
             if not sender or sender.Parent ~= Players or leaving[sender]
@@ -31,7 +35,7 @@ function ChatFilter.CreatePredicate(mode)
             end
             -- Trusted server-side gameplay restriction, never a substitute for Roblox permissions.
             if sender:GetAttribute("ChatFilterMuted") == true then return false end
-            local admitted = gate:Admit(sender, message.MessageId, os.clock())
+            local admitted = gate:Admit(sender, message.MessageId, os.clock(), channel)
             if not admitted then return false end
             -- Content-independent mode must never even access the Text property.
             if mode == "context" then return true end

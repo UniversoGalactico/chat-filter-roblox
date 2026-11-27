@@ -26,19 +26,29 @@ if not filterOk or type(filter) ~= "table" or type(filter.CreatePredicate) ~= "f
     warn("[ChatFilter] Filter module invalid; no hook installed.")
     return
 end
-local channels = TextChatService:WaitForChild("TextChannels", 10)
-if not channels then warn("[ChatFilter] TextChannels missing; no hook installed.") return end
 local names = {}
-if type(config.ChannelNames) ~= "table" or #config.ChannelNames > 32 then
+if type(config.ChannelNames) ~= "table" or getmetatable(config.ChannelNames) ~= nil or #config.ChannelNames > 32 then
     warn("[ChatFilter] Invalid channel allowlist; no hook installed.")
     return
 end
-for _, name in ipairs(config.ChannelNames) do
-    if type(name) ~= "string" or #name == 0 or #name > 128 then
-        warn("[ChatFilter] Invalid channel name; no hook installed.")
+local count = 0
+for key, name in pairs(config.ChannelNames) do
+    if type(key) ~= "number" or key % 1 ~= 0 or key < 1 or key > #config.ChannelNames
+        or type(name) ~= "string" or #name == 0 or #name > 128 or names[name] then
+        warn("[ChatFilter] Invalid channel allowlist; no hook installed.")
+        return
+    end
+    -- Never override native team, whisper, system or future reserved RBX channels.
+    if name:sub(1,3):upper() == "RBX" and name ~= "RBXGeneral" then
+        warn("[ChatFilter] Reserved channel cannot be auto-bound.")
         return
     end
     names[name] = true
+    count = count + 1
+end
+if count ~= #config.ChannelNames then
+    warn("[ChatFilter] Sparse channel allowlist; no hook installed.")
+    return
 end
 if next(names) == nil then
     warn("[ChatFilter] No channels configured; no hook installed.")
@@ -50,19 +60,53 @@ if not initialized or type(predicate) ~= "function" or type(stop) ~= "function" 
     return
 end
 local bound = {}
-local function bind(channel)
-    if channel.Parent ~= channels or not channel:IsA("TextChannel") or not names[channel.Name] or bound[channel] then return end
-    -- ShouldDeliverCallback is a single-owner hook. Only configure channels this script owns.
-    local ok = pcall(function() channel.ShouldDeliverCallback = predicate end)
-    if ok then bound[channel] = true else warn("[ChatFilter] Could not bind configured channel.") end
+local byName = {}
+local active = true
+local function ownsLocation(channel)
+    local parent = channel.Parent
+    return parent == TextChatService
+        or (parent and parent.Parent == TextChatService and parent.Name == "TextChannels" and parent:IsA("Folder"))
 end
-local added = channels.ChildAdded:Connect(bind)
-local removed = channels.ChildRemoved:Connect(function(channel) bound[channel] = nil end)
-for _, channel in ipairs(channels:GetChildren()) do bind(channel) end
+local function bind(channel)
+    if not active or not channel:IsA("TextChannel") or not ownsLocation(channel)
+        or not names[channel.Name] or bound[channel] then return end
+    local name = channel.Name
+    if byName[name] then
+        warn("[ChatFilter] Duplicate configured channel name; second channel left native.")
+        return
+    end
+    -- Do not attempt to read an existing callback: Roblox callback members are write-only.
+    -- The developer must explicitly own this channel before enabling auto-binding.
+    local token = {}
+    local function deliver(message, recipient)
+        if not active or bound[channel] ~= token or channel.Name ~= name or not ownsLocation(channel) then return false end
+        return predicate(message, recipient, channel)
+    end
+    local ok = pcall(function() channel.ShouldDeliverCallback = deliver end)
+    if ok then
+        bound[channel] = token
+        byName[name] = channel
+    else
+        warn("[ChatFilter] Could not bind configured channel.")
+    end
+end
+local function unbind(channel)
+    if not bound[channel] then return end
+    bound[channel] = nil
+    for name, current in pairs(byName) do
+        if current == channel then byName[name] = nil break end
+    end
+    -- Never clear a callback that another developer may have replaced.
+end
+local added = TextChatService.DescendantAdded:Connect(bind)
+local removed = TextChatService.DescendantRemoving:Connect(unbind)
+for _, channel in ipairs(TextChatService:GetDescendants()) do bind(channel) end
 script.Destroying:Connect(function()
+    if not active then return end
+    active = false
     added:Disconnect()
     removed:Disconnect()
     stop()
-    -- Fail closed for previously bound callbacks until the owning channel is replaced.
     table.clear(bound)
+    table.clear(byName)
 end)

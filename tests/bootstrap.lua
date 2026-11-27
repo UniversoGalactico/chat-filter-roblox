@@ -1,33 +1,40 @@
--- Roblox bootstrap mock: no actual platform filtering or delivery is simulated.
+-- Roblox bootstrap mock: channels can be direct children or under TextChannels.
 local function signal()
-    local s = {handlers={}}
+    local s={handlers={}}
     function s:Connect(cb)
         local entry={cb=cb,active=true}
         self.handlers[#self.handlers+1]=entry
         return {Disconnect=function() entry.active=false end}
     end
     function s:Fire(value)
-        for _, entry in ipairs(self.handlers) do if entry.active then entry.cb(value) end end
+        for _,entry in ipairs(self.handlers) do if entry.active then entry.cb(value) end end
     end
     return s
 end
 local function scenario(mode, options)
     options=options or {}
-    local folder={ChildAdded=signal(),ChildRemoved=signal(),children={}}
-    function folder:GetChildren() return self.children end
-    local function channel(name,class)
-        local c={Name=name,Parent=folder}
+    local service={DescendantAdded=signal(),DescendantRemoving=signal(),children={}}
+    function service:GetDescendants() return self.children end
+    local folder={Parent=service,Name="TextChannels"}
+    function folder:IsA(class) return class=="Folder" end
+    local function channel(name,class,parent)
+        local c={Name=name,Parent=parent or folder}
         function c:IsA(wanted) return (class or "TextChannel")==wanted end
-        folder.children[#folder.children+1]=c
+        service.children[#service.children+1]=c
         return c
     end
     local general=channel("RBXGeneral")
     local team=channel("RBXTeam")
     local impostor=channel("RBXGeneral","Folder")
-    local calls, stopped, warnings=0,0,0
-    local function callback() return true end
+    local direct=channel("Match",nil,service)
+    local nested=channel("Match",nil,{Parent=service,Name="Other"})
+    local calls,stopped,warnings,deliveries=0,0,0,0
+    local function callback(message,recipient,boundChannel)
+        deliveries=deliveries+1
+        return message==boundChannel
+    end
     local mods={
-        ChatConfiguration={Mode=mode,ChannelNames=options.names or {"RBXGeneral"}},
+        ChatConfiguration={Mode=mode,ChannelNames=options.names or {"RBXGeneral","Match"}},
         ChatFilter={CreatePredicate=function(received)
             assert(received==mode)
             calls=calls+1
@@ -44,11 +51,7 @@ local function scenario(mode, options)
             if options.noModules then return nil end
             return moduleFolder
         end},
-        TextChatService={WaitForChild=function(_,name,timeout)
-            assert(name=="TextChannels" and timeout==10)
-            if options.noChannels then return nil end
-            return folder
-        end},
+        TextChatService=service,
     }
     local destroying=signal()
     local env=setmetatable({
@@ -64,25 +67,35 @@ local function scenario(mode, options)
     },{__index=_G})
     assert(loadfile("server/ChatServer.lua","t",env))()
     if options.expectHook then
-        assert(calls==1 and general.ShouldDeliverCallback==callback)
-        assert(team.ShouldDeliverCallback==nil and impostor.ShouldDeliverCallback==nil)
-        local dynamic=channel("RBXGeneral")
-        folder.ChildAdded:Fire(dynamic)
-        assert(dynamic.ShouldDeliverCallback==callback)
+        assert(calls==1 and general.ShouldDeliverCallback and direct.ShouldDeliverCallback)
+        assert(team.ShouldDeliverCallback==nil and impostor.ShouldDeliverCallback==nil and nested.ShouldDeliverCallback==nil)
+        assert(general.ShouldDeliverCallback(general,{}))
+        assert(not general.ShouldDeliverCallback(direct,{}))
+        local first=general.ShouldDeliverCallback
+        local duplicate=channel("RBXGeneral")
+        service.DescendantAdded:Fire(duplicate)
+        assert(duplicate.ShouldDeliverCallback==nil)
+        general.Name="Other"
+        assert(not first(general,{}))
+        general.Name="RBXGeneral"
+        assert(first(general,{}))
+        service.DescendantRemoving:Fire(general)
+        assert(not first(general,{}))
+        general.Parent=nil
+        service.DescendantAdded:Fire(duplicate)
+        assert(duplicate.ShouldDeliverCallback and duplicate.ShouldDeliverCallback(duplicate,{}))
         local unrelated=channel("RBXWhisper")
-        folder.ChildAdded:Fire(unrelated)
+        service.DescendantAdded:Fire(unrelated)
         assert(unrelated.ShouldDeliverCallback==nil)
-        local detached=channel("RBXGeneral")
-        detached.Parent=nil
-        folder.ChildAdded:Fire(detached)
-        assert(detached.ShouldDeliverCallback==nil)
         destroying:Fire()
-        assert(stopped==1)
-        local after=channel("RBXGeneral")
-        folder.ChildAdded:Fire(after)
+        destroying:Fire()
+        assert(stopped==1 and not duplicate.ShouldDeliverCallback(duplicate,{}) and not direct.ShouldDeliverCallback(direct,{}))
+        local after=channel("Match",nil,service)
+        service.DescendantAdded:Fire(after)
         assert(after.ShouldDeliverCallback==nil)
+        assert(deliveries>=4)
     else
-        assert(general.ShouldDeliverCallback==nil and team.ShouldDeliverCallback==nil)
+        assert(general.ShouldDeliverCallback==nil and team.ShouldDeliverCallback==nil and direct.ShouldDeliverCallback==nil)
         assert(calls==(options.initError and 1 or 0))
         if mode~="native" then assert(warnings>0) end
     end
@@ -92,10 +105,13 @@ scenario("invalid")
 scenario("context",{expectHook=true})
 scenario("legacy_text",{expectHook=true})
 scenario("context",{noModules=true})
-scenario("context",{noChannels=true})
 scenario("context",{badRequire="ChatConfiguration"})
 scenario("context",{badRequire="ChatFilter"})
 scenario("context",{names={}})
 scenario("context",{names={42}})
+scenario("context",{names={"RBXTeam"}})
+scenario("context",{names={"rbxwhisper"}})
+scenario("context",{names={"RBXGeneral","RBXGeneral"}})
+scenario("context",{names={[1]="Match",[3]="Other"}})
 scenario("context",{initError=true})
-print("PASS: 11 bootstrap scenarios")
+print("PASS: 14 bootstrap scenarios")

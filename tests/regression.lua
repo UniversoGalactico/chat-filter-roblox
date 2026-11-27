@@ -80,6 +80,16 @@ expect(tiny:Admit("X", "3", 2), false, "overflow denial stays stable")
 expect(tiny:Admit("X", "4", 4.1), true, "idle quarantine expires")
 tiny:Clear()
 expect(tiny:Admit("X", "4", 0), true, "clear state")
+local channelsGate = Gate.new({MessagesPerSecond=2,DecisionTTL=2,MaxCachedMessages=4})
+local ch1,ch2,ch3={},{},{}
+expect(channelsGate:Admit("P","same",0,ch1),true,"first channel")
+expect(channelsGate:Admit("P","same",0,ch1),true,"same channel duplicate")
+expect(channelsGate:Admit("P","same",0,ch2),true,"second channel uses quota")
+expect(channelsGate:Admit("P","same",0,ch3),false,"third channel cannot reuse allow")
+expect(channelsGate:Admit("P","same",2,ch3),true,"expired scope reused")
+expect(channelsGate:Admit("P","same",2,ch1),true,"empty bucket was safely removed")
+expect(channelsGate:Admit("P","same",2,ch2),false,"shared quota across scopes")
+expect(channelsGate:Admit("P","same",2,0/0),false,"invalid scope")
 local ring = Gate.new({MessagesPerSecond=1, DecisionTTL=1, MaxCachedMessages=1})
 for i = 0, 1000 do expect(ring:Admit("R", "same", i), true, "ring wraps") end
 -- Deterministic malformed/random-byte smoke test; no raw input printed.
@@ -206,8 +216,9 @@ for _, spec in ipairs({{1,1,1},{3,5,24},{20,60,256},{5,2.5,6},{2,10,32}}) do
             local id="M"..(rng%120)
             local now=sequenceTime
             if rng%41==0 and model.last>1 then now=model.last-0.5 end
-            local wanted,reason=reference(model,id,now,limit,ttl,capacity)
-            local actual,why=modelGate:Admit(sender,id,now)
+            local scope = "C" .. (rng % 3)
+            local wanted,reason=reference(model,scope .. ":" .. id,now,limit,ttl,capacity)
+            local actual,why=modelGate:Admit(sender,id,now,scope)
             expect(actual,wanted,"reference decision")
             expect(why,reason,"reference reason")
         end

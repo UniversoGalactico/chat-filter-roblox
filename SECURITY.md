@@ -8,13 +8,13 @@ ChatFilter is supplemental, not a replacement for Roblox safety mechanisms.
 - ChatFilter installs no chat-related RemoteEvent, does not accept messages directly from clients, and does not log, persist or export chat text.
 - The optional server hook can withhold delivery; it cannot authorize a recipient against Roblox's rules.
 - The default native mode installs no hook. Context mode uses server state and platform message identity without reading text. Legacy text mode is transitional only.
-- Server-side game code and configured policy tables are trusted. The configured channels' delivery callbacks must have exactly one owner.
+- Server-side game code and configured policy tables are trusted. The configured channels' delivery callbacks must have exactly one owner. The auto-binder rejects native reserved channels other than RBXGeneral and never reads or clears an existing callback. Renamed/detached bound channels deny until explicitly rebound or restarted.
 
 ## Resource and lifecycle properties
 
 - Every lexical input is bounded before normalization. Token count and token size are also bounded. Fuzzy matching is off by default and limited to one ASCII edit against dictionary words of 6–32 bytes. Signature indexes bound work by the input length rather than scanning the configured dictionary. Exact matching is available for longer configured words.
 - Each live sender has a fixed-size cache of message admission decisions, a fixed-capacity FIFO expiry ring and a bounded sliding-window admission list. The admission engine accepts no evaluator callback and cannot yield through user code. Duplicate recipient callbacks reuse admission, never a text verdict. Lexical rules are checked independently per eligible recipient, since TextChatMessage.Text can differ between users. Unknown IDs during cache pressure are quarantined until an idle interval, rather than evicting a live denial.
-- The cache assumes the platform's MessageId uniquely identifies the same logical send and recipient callbacks occur within the configured decision TTL. A delayed callback after expiry can be treated as a new decision. No cross-server policy state is retained.
+- The cache keys by the channel instance plus platform MessageId and assumes the pair identifies the same logical send and recipient callbacks occur within the configured decision TTL. A delayed callback after expiry can be treated as a new decision. No cross-server policy state is retained.
 - Only fixed admission result codes are cached. Player departure discards sender state; a leaving player is rejected even before Parent changes.
 - The hook is non-yielding. Optional-policy errors deny the affected delivery. Installation errors leave the native chat intact and emit static diagnostics.
 - Hot replacement of delivery hooks is not supported. Restart the server after configuration changes; a stopped hook denies further deliveries if still attached.
