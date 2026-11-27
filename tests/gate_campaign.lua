@@ -69,9 +69,9 @@ for scenario=1,SCENARIOS do
     local cfg={MessagesPerSecond=limit,DecisionTTL=ttlOptions[draw(#ttlOptions)],MaxCachedMessages=capOptions[draw(#capOptions)]}
     local a,b=Gate.new(cfg),Gate.new(cfg)
     -- Change both key identities and types in the second implementation.
-    local ownersA,ownersB=keys(),keys()
-    local scopeA,scopeB=scopes(),scopes()
-    local model,history={},{}
+    local ownersA,ownersB=keys(),{"B1",3,setmetatable({},meta),{},"B5",-9}
+    local scopeA,scopeB=scopes(),{"Bscope",-7,setmetatable({},meta),{},13}
+    local model={}
     local now=0
     local lastOwner,lastScope,lastId=1,1,ids[1]
     for step=1,STEPS do
