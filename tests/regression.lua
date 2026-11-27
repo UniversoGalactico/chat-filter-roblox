@@ -195,6 +195,69 @@ expect(indexed("abxdef"),true,"fuzzy allow")
 expect(pcall(Policy.new,config,{Words={[1]="aaa",[3]="bbb"},Phrases={},AllowWords={},BlockSymbols={}}),false,"sparse array")
 expect(pcall(Policy.new,config,{Words={foo="aaa"},Phrases={},AllowWords={},BlockSymbols={}}),false,"named array key")
 expect(pcall(Policy.new,config,{Words=setmetatable({},{}),Phrases={},AllowWords={},BlockSymbols={}}),false,"metatable array")
+-- Independent ASCII reference for the optimized byte-pattern fast path.
+local asciiPolicy=Policy.new(config,{Words={"abcdef","a1b","123"},Phrases={"alpha beta"},AllowWords={},BlockSymbols={}})
+local asciiWords={abcdef=true,aib=true,["123"]=true}
+local asciiMap={["0"]="o",["1"]="i",["3"]="e",["4"]="a",["5"]="s",["7"]="t"}
+local function referenceAscii(input)
+    local tokens={}
+    local chars={}
+    local function flush()
+        if #chars==0 then return end
+        local token=table.concat(chars)
+        chars={}
+        if token:match("[a-z]") then
+            local out={}
+            for j=1,#token do
+                local ch=token:sub(j,j)
+                out[j]=asciiMap[ch] or ch
+            end
+            token=table.concat(out)
+        end
+        tokens[#tokens+1]=token
+    end
+    for i=1,#input do
+        local byte=input:byte(i)
+        if byte>=65 and byte<=90 then
+            chars[#chars+1]=string.char(byte+32)
+        elseif (byte>=97 and byte<=122) or (byte>=48 and byte<=57) then
+            chars[#chars+1]=string.char(byte)
+        else
+            flush()
+        end
+    end
+    flush()
+    for i,token in ipairs(tokens) do
+        if asciiWords[token] or (token=="alpha" and tokens[i+1]=="beta") then return false end
+    end
+    return true
+end
+for byte=0,127 do
+    local separator=string.char(byte)
+    for _,candidate in ipairs({"alpha"..separator.."beta","x"..separator.."abcdef","a"..separator.."1b","x"..separator.."123","abcdef"..separator.."x"}) do
+        expect(asciiPolicy(candidate),referenceAscii(candidate),"all ASCII separators")
+    end
+end
+for i=1,5000 do
+    rng=(rng*48271)%2147483647
+    local parts={"alpha"}
+    for j=1,1+rng%15 do
+        rng=(rng*48271)%2147483647
+        parts[#parts+1]=string.char(rng%128)
+    end
+    parts[#parts+1]=(rng%2==0) and "beta" or "abcdef"
+    local candidate=table.concat(parts)
+    expect(asciiPolicy(candidate),referenceAscii(candidate),"ASCII reference")
+end
+local unicodeSynthetic=Policy.new(config,{Words={"abcdef"},Phrases={"alpha beta"},AllowWords={},BlockSymbols={}})
+for _,cp in ipairs({0xA0,0x1680,0x2000,0x200A,0x2014,0x2028,0x2029,0x202F,0x205F,0x3000}) do
+    expect(unicodeSynthetic("alpha"..utf8.char(cp).."beta"),false,"Unicode separator")
+end
+expect(unicodeSynthetic("ａｂｃｄｅｆ"),false,"fullwidth lowercase")
+expect(unicodeSynthetic("Ábçdéf"),false,"accent folding")
+expect(unicodeSynthetic("école"),true,"unrelated accented word")
+expect(unicodeSynthetic("日本語"),true,"unrelated script")
+expect(unicodeSynthetic("a"..utf8.char(0x200D).."bcdef"),false,"selected format control")
 -- Independent scan-based model; compare every result and reason with the FIFO.
 local function reference(state, id, now, limit, ttl, capacity)
     if now < state.last then return false, "clock_regression" end

@@ -24,34 +24,37 @@ end
 local leet = { ["0"]="o", ["1"]="i", ["3"]="e", ["4"]="a", ["5"]="s", ["7"]="t" }
 
 local function tokenize(text, maxTokens, maxTokenBytes)
-    -- Validate UTF-8 before substitutions. An invalid string never reaches rules.
-    if not utf8.len(text) then return nil, "invalid_utf8" end
-    -- A single codepoint pass handles the explicitly supported subset of Unicode.
-    -- No claim of full normalization or cross-script confusable detection.
-    local parts = {}
-    for _, cp in utf8.codes(text) do
-        if cp > 0x10FFFF or (cp >= 0xD800 and cp <= 0xDFFF) then return nil, "invalid_utf8" end
-        if not ignored[cp] then
-            if cp >= 0xFF01 and cp <= 0xFF5E then cp = cp - 0xFEE0 end
-            local part
-            if fold[cp] then
-                part = fold[cp]
-            elseif isSeparator(cp) then
-                part = " "
-            elseif cp >= 65 and cp <= 90 then
-                part = string.char(cp + 32)
-            else
-                part = utf8.char(cp)
+    -- Fast path: all ASCII bytes are valid UTF-8. Use the same explicit separator
+    -- ranges as the Unicode path, not locale-dependent character classes.
+    if not text:find("[\128-\255]") then
+        text = text:lower():gsub("[%z\1-\47\58-\64\91-\96\123-\127]+", " ")
+    else
+        if not utf8.len(text) then return nil, "invalid_utf8" end
+        local parts = {}
+        for _, cp in utf8.codes(text) do
+            if cp > 0x10FFFF or (cp >= 0xD800 and cp <= 0xDFFF) then return nil, "invalid_utf8" end
+            if not ignored[cp] then
+                if cp >= 0xFF01 and cp <= 0xFF5E then cp = cp - 0xFEE0 end
+                local part
+                if fold[cp] then
+                    part = fold[cp]
+                elseif isSeparator(cp) then
+                    part = " "
+                elseif cp >= 65 and cp <= 90 then
+                    part = string.char(cp + 32)
+                else
+                    part = utf8.char(cp)
+                end
+                parts[#parts + 1] = part
             end
-            parts[#parts + 1] = part
         end
+        text = table.concat(parts)
     end
-    text = table.concat(parts)
     local tokens = {}
-    for token in text:gmatch("%S+") do
+    for token in text:gmatch("[^ ]+") do
         if #tokens >= maxTokens or #token > maxTokenBytes then return nil, "complexity_limit" end
         -- Keep standalone numbers intact.
-        if token:find("[a-z]") then token = token:gsub("[013457]", leet) end
+        if token:find("[013457]") and token:find("[a-z]") then token = token:gsub("[013457]", leet) end
         tokens[#tokens + 1] = token
     end
     return tokens
