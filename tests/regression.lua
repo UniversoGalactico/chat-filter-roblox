@@ -45,6 +45,10 @@ local fuzzyConfig = {}
 for k, v in pairs(config) do fuzzyConfig[k] = v end
 fuzzyConfig.EnableFuzzy = true
 local fuzzy = Policy.new(fuzzyConfig, data)
+local invalidFuzzy={}
+for k,v in pairs(config) do invalidFuzzy[k]=v end
+invalidFuzzy.EnableFuzzy="true"
+expect(pcall(Policy.new,invalidFuzzy,data),false,"invalid fuzzy setting")
 expect(fuzzy("pelotud"), false, "one deletion")
 
 expect(fuzzy("pelotxdo"), false, "one substitution")

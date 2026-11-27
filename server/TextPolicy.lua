@@ -100,6 +100,7 @@ function TextPolicy.new(config, data)
     local maxBytes = boundedInt(config.MaxMessageBytes, 1, 2048)
     local maxTokens = boundedInt(config.MaxTokens, 1, 128)
     local maxTokenBytes = boundedInt(config.MaxTokenBytes, 1, 128)
+    assert(config.EnableFuzzy == nil or type(config.EnableFuzzy) == "boolean", "EnableFuzzy must be boolean")
     local fuzzy = config.EnableFuzzy == true
     local words, allowed, phraseRoot, symbols = {}, {}, {}, {}
     local fuzzyWords, deletions, substitutions = {}, {}, {}
