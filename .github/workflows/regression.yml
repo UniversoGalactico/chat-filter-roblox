@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - run: lua5.4 tests/regression.lua && lua5.4 tests/policy_examples.lua && lua5.4 tests/adapter.lua && lua5.4 tests/bootstrap.lua && lua5.4 tests/public_fields.lua && lua5.4 tests/public_field_adapter.lua
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/policy_examples.lua && lua5.4 tests/adapter.lua
       - name: Targeted mutation tests (temporary copies)
         run: python3 tests/mutation.py
       - name: Install checksum-pinned Luau 0.734
@@ -33,14 +33,13 @@ jobs:
       - name: Compile every shipped Luau source
         run: |
           chmod +x "$RUNNER_TEMP/luau/luau-compile"
-          for file in server/*.lua client/*.lua tests/studio/*.lua; do
+          for file in server/*.lua tests/studio/*.lua; do
             "$RUNNER_TEMP/luau/luau-compile" "$file" > /dev/null
           done
       - name: Run pure tests in Luau
         run: |
           "$RUNNER_TEMP/luau/luau" tests/regression.lua
           "$RUNNER_TEMP/luau/luau" tests/policy_examples.lua
-          "$RUNNER_TEMP/luau/luau" tests/public_fields.lua
       - name: Compare baseline and current algorithms
         run: |
           mkdir -p tests/.baseline

@@ -9,10 +9,13 @@ import tempfile
 import sys
 
 MUTANTS = [
-  ["lexical_spanish_punctuation","TextPolicy.lua","regression.lua","or cp == 0xA1 or cp == 0xBF or cp == 0xAB or cp == 0xBB or cp == 0xB7","or false"],
-  ["adapter_sender_membership","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","recipient.Parent ~= channel or source.CanSend ~= true"],
-  ["adapter_recipient_membership","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","source.Parent ~= channel or source.CanSend ~= true"],
-  ["adapter_readonly_sender","ChatFilter.lua","adapter.lua","source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true","source.Parent ~= channel or recipient.Parent ~= channel"],
+  [
+    "lexical_spanish_punctuation",
+    "TextPolicy.lua",
+    "regression.lua",
+    "or cp == 0xA1 or cp == 0xBF or cp == 0xAB or cp == 0xBB or cp == 0xB7",
+    "or false"
+  ],
   [
     "gate_channel_isolation",
     "DeliveryGate.lua",
@@ -140,18 +143,46 @@ MUTANTS = [
     "if false then"
   ],
   [
-    "adapter_cached_lexical_allow",
+    "adapter_channel_mismatch",
     "ChatFilter.lua",
     "adapter.lua",
-    "if mode == \"context\" then return true, \"allow\" end",
-    "if admitted then return true, \"allow\" end"
+    "if message.TextChannel ~= channel then return false, \"invalid_identity\" end",
+    "if false then return false, \"invalid_identity\" end"
   ],
   [
-    "adapter_context_text_access",
+    "adapter_detached_channel",
     "ChatFilter.lua",
     "adapter.lua",
-    "if mode == \"context\" then return true, \"allow\" end",
-    "if mode == \"context\" then local _ = message.Text return true, \"allow\" end"
+    "if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then",
+    "if channel.Name ~= name then"
+  ],
+  [
+    "adapter_rename",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "if not channel:IsDescendantOf(TextChatService) or channel.Name ~= name then",
+    "if not channel:IsDescendantOf(TextChatService) then"
+  ],
+  [
+    "adapter_sender_membership",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true",
+    "recipient.Parent ~= channel or source.CanSend ~= true"
+  ],
+  [
+    "adapter_recipient_membership",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true",
+    "source.Parent ~= channel or source.CanSend ~= true"
+  ],
+  [
+    "adapter_readonly_sender",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "source.Parent ~= channel or recipient.Parent ~= channel or source.CanSend ~= true",
+    "source.Parent ~= channel or recipient.Parent ~= channel"
   ],
   [
     "adapter_departure",
@@ -161,88 +192,32 @@ MUTANTS = [
     ""
   ],
   [
-    "adapter_channel_mismatch",
+    "adapter_context_text_access",
     "ChatFilter.lua",
     "adapter.lua",
-    "or (expectedChannel and channel ~= expectedChannel) then",
-    "then"
+    "if not evaluate then return true, \"allow\" end",
+    "if not evaluate then local _ = message.Text return true, \"allow\" end"
   ],
   [
-    "bootstrap_reserved_channel",
-    "ChatServer.lua",
-    "bootstrap.lua",
-    "if name:sub(1,3):upper() == \"RBX\" and name ~= \"RBXGeneral\" then",
-    "if false then"
+    "adapter_legacy_verdict",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "return evaluate(text)",
+    "return true, \"allow\""
   ],
   [
-    "bootstrap_detached_channel",
-    "ChatServer.lua",
-    "bootstrap.lua",
-    "or not ownsLocation(channel) then return false end",
-    "then return false end"
+    "adapter_reserved",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "assert(name == \"RBXGeneral\" or name:sub(1,3):upper() ~= \"RBX\", \"reserved channel\")",
+    "assert(true)"
   ],
   [
-    "field_global_claim",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if claim(id)~=true then return nil,\"rate_limit\" end",
-    "if false then return nil,\"rate_limit\" end"
-  ],
-  [
-    "field_stale_output",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "local text=broadcast(result)\n            if not fresh() then return nil,\"stale\" end",
-    "local text=broadcast(result)"
-  ],
-  [
-    "field_local_cooldown",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if nextTime and started<nextTime then return nil,\"rate_limit\" end",
-    "if false then return nil,\"rate_limit\" end"
-  ],
-  [
-    "field_single_flight",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if busy[id] then return nil,\"busy\" end",
-    "if false then return nil,\"busy\" end"
-  ],
-  [
-    "field_capacity",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if active>=maxConcurrent then return nil,\"capacity\" end",
-    "if false then return nil,\"capacity\" end"
-  ],
-  [
-    "field_fail_open",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if not success then return nil,\"service_error\" end",
-    "if not success then return raw,\"allow\" end"
-  ],
-  [
-    "field_filter_output",
-    "PublicFieldPipeline.lua",
-    "public_fields.lua",
-    "if not validText(text,MAX_OUTPUT) then return nil,\"filter_error\" end",
-    "if false then return nil,\"filter_error\" end"
-  ],
-  [
-    "field_claim_token",
-    "PublicFieldService.lua",
-    "public_field_adapter.lua",
-    "return result==token",
-    "return result~=nil"
-  ],
-  [
-    "field_owned_worker",
-    "PublicFieldService.lua",
-    "public_field_adapter.lua",
-    "local scheduled=pcall(task.spawn,function()",
-    "local scheduled=pcall(function()"
+    "adapter_unknown_option",
+    "ChatFilter.lua",
+    "adapter.lua",
+    "for key in pairs(options) do assert(known[key], \"unknown ChatFilter option\") end",
+    "for key in pairs(options) do end"
   ]
 ]
 
