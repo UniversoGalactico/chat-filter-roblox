@@ -10,7 +10,9 @@ local ChatFilter = {}
 function ChatFilter.CreatePredicate()
     local evaluate = TextPolicy.new(Config, Data)
     local gate = DeliveryGate.new(Config)
+    local leaving = setmetatable({}, { __mode = "k" })
     local removing = Players.PlayerRemoving:Connect(function(player)
+        leaving[player] = true
         gate:Forget(player)
     end)
     local active = true
@@ -21,7 +23,8 @@ function ChatFilter.CreatePredicate()
             if not source or not recipient then return false end
             local sender = Players:GetPlayerByUserId(source.UserId)
             local receiver = Players:GetPlayerByUserId(recipient.UserId)
-            if not sender or sender.Parent ~= Players or not receiver or receiver.Parent ~= Players then
+            if not sender or sender.Parent ~= Players or leaving[sender]
+                or not receiver or receiver.Parent ~= Players or leaving[receiver] then
                 return false
             end
             -- Trusted server-side gameplay restriction, never a substitute for Roblox permissions.
@@ -41,6 +44,7 @@ function ChatFilter.CreatePredicate()
         if not active then return end
         active = false
         removing:Disconnect()
+        gate:Clear()
     end
     return predicate, stop
 end

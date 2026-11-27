@@ -8,19 +8,42 @@ local accents = {
     ["ú"]="u", ["ù"]="u", ["û"]="u", ["ü"]="u", ["Ú"]="u", ["Ù"]="u", ["Û"]="u", ["Ü"]="u",
     ["ñ"]="n", ["Ñ"]="n", ["ç"]="c", ["Ç"]="c",
 }
-local invisible = { "​", "‌", "‍", "﻿" } -- explicitly selected zero-width characters
+local invisible = { 0x200B, 0x200C, 0x200D, 0xFEFF, 0x300, 0x301, 0x302, 0x303, 0x308, 0x327 }
+local ignored, fold = {}, {}
+for _, cp in ipairs(invisible) do ignored[cp] = true end
+for char, replacement in pairs(accents) do fold[utf8.codepoint(char)] = replacement end
+local function isSeparator(cp)
+    return cp <= 32 or cp == 127 or (cp >= 33 and cp <= 47)
+        or (cp >= 58 and cp <= 64) or (cp >= 91 and cp <= 96)
+        or (cp >= 123 and cp <= 126) or cp == 0xA0 or cp == 0x1680
+        or (cp >= 0x2000 and cp <= 0x200A) or (cp >= 0x2010 and cp <= 0x2029)
+        or cp == 0x202F or cp == 0x205F or cp == 0x3000
+end
 local leet = { ["0"]="o", ["1"]="i", ["3"]="e", ["4"]="a", ["5"]="s", ["7"]="t" }
 
 local function tokenize(text, maxTokens, maxTokenBytes)
     -- Validate UTF-8 before substitutions. An invalid string never reaches rules.
     if not utf8.len(text) then return nil, "invalid_utf8" end
-    for _, char in ipairs(invisible) do text = text:gsub(char, "") end
-    -- Common decomposed accent marks; this is deliberately not full Unicode NFKC.
-    for _, cp in ipairs({ 0x300, 0x301, 0x302, 0x303, 0x308, 0x327 }) do
-        text = text:gsub(utf8.char(cp), "")
+    -- A single codepoint pass handles the explicitly supported subset of Unicode.
+    -- No claim of full normalization or cross-script confusable detection.
+    local parts = {}
+    for _, cp in utf8.codes(text) do
+        if not ignored[cp] then
+            if cp >= 0xFF01 and cp <= 0xFF5E then cp = cp - 0xFEE0 end
+            local part
+            if fold[cp] then
+                part = fold[cp]
+            elseif isSeparator(cp) then
+                part = " "
+            elseif cp >= 65 and cp <= 90 then
+                part = string.char(cp + 32)
+            else
+                part = utf8.char(cp)
+            end
+            parts[#parts + 1] = part
+        end
     end
-    for char, replacement in pairs(accents) do text = text:gsub(char, replacement) end
-    text = text:lower():gsub("[%p%c]", " ")
+    text = table.concat(parts)
     local tokens = {}
     for token in text:gmatch("%S+") do
         if #tokens >= maxTokens or #token > maxTokenBytes then return nil, "complexity_limit" end

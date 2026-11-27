@@ -1,11 +1,24 @@
-name: Pure policy regressions
+name: Policy regressions
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
   regression:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - run: sudo apt-get update && sudo apt-get install -y lua5.4
-      - run: lua5.4 tests/regression.lua
+      - run: lua5.4 tests/regression.lua && lua5.4 tests/adapter.lua
+      - name: Install checksum-pinned Luau 0.734
+        run: |
+          archive="$RUNNER_TEMP/luau-ubuntu.zip"
+          curl --fail --location --retry 3 https://github.com/luau-lang/luau/releases/download/0.734/luau-ubuntu.zip --output "$archive"
+          echo "3e514385267c6606f1ff6824bd9d21708a5dd272ea91ab7355a2743b20d45d45  $archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/luau"
+          unzip -q "$archive" -d "$RUNNER_TEMP/luau"
+          chmod +x "$RUNNER_TEMP/luau/luau"
+      - name: Run pure tests in Luau
+        run: '"$RUNNER_TEMP/luau/luau" tests/regression.lua'

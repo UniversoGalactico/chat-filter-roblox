@@ -29,12 +29,12 @@ Delete the original ChatMessage RemoteEvent, legacy ChatServer and client GUI sc
 3. In Studio, verify that platform-integrated chat is disabled and that you own the configured channel's ShouldDeliverCallback. EnableLegacyDeliveryPolicy defaults to false; enable it only after these checks. Do not overwrite another system's callback. RBXGeneral is the sole default target; other channels retain native moderation only.
 4. Test with multiple clients before deploying. See tests/README.md. Do not enable this mode in integrated chat.
 
-The optional policy uses exact normalized token and phrase matching, a small editable multilingual list, selected accent/leet folding, optional one-edit fuzzy matching (off by default), bounded processing and per-sender rate limits. Decisions are cached by platform message ID so each recipient callback does not consume a separate rate slot. Cache overflow denies new messages; entries expire; player departure cleans state. No text is retained or printed. A trusted server may set ChatFilterMuted on a Player for temporary gameplay restrictions in covered channels. This is not a platform-wide mute.
+The optional policy uses exact normalized token and phrase matching, a small editable multilingual list, selected accent/leet folding, optional one-edit fuzzy matching (off by default), bounded processing and per-sender rate limits. Decisions are cached by platform message ID so each recipient callback does not consume a separate rate slot. Cache overflow quarantines unseen message IDs until a quiet TTL interval; live cached decisions are preserved. Entries expire, and player departure cleans state. No text is retained or printed. A trusted server may set ChatFilterMuted on a Player for temporary gameplay restrictions in covered channels. This is not a platform-wide mute.
 
 Native chat can still show a sender their own local echo even when delivery to others is denied. This library does not guarantee full Unicode normalization, contextual detection, evasion resistance, or moderation across unconfigured channels. Empty text is left to native moderation; never attempt to retrieve unavailable text. Disable the legacy hook before platform-integrated chat migration.
 
 ## Tests
 
-Run `lua5.4 tests/regression.lua`. Pure policy/gate tests and deterministic malformed-input checks are separate from Roblox integration tests. No Studio validation is claimed.
+Run `lua5.4 tests/regression.lua`, `lua5.4 tests/adapter.lua` and `luau tests/regression.lua`. The adapter uses a mock of the Roblox boundary; the pure suite includes differential edit-distance checks and deterministic malformed-input tests. No Studio validation is claimed.
 
 MIT license. Contributions welcome.

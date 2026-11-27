@@ -1,16 +1,20 @@
 -- Bounded, non-yielding message admission. Roblox invokes delivery once per recipient.
 -- Cache only the message ID, expiry and boolean; never the message text.
 local DeliveryGate = {}
+local reasons = { allow=true, invalid_length=true, invalid_utf8=true, complexity_limit=true, symbol=true, phrase=true, word=true, fuzzy=true, native_only=true }
 function DeliveryGate.new(config)
     local limit, ttl, capacity = config.MessagesPerSecond, config.DecisionTTL, config.MaxCachedMessages
     assert(type(limit) == "number" and limit >= 1 and limit <= 20 and limit % 1 == 0)
     assert(type(ttl) == "number" and ttl >= 1 and ttl <= 60)
     assert(type(capacity) == "number" and capacity >= limit and capacity <= 256 and capacity % 1 == 0)
-    local senders = {}
+    local senders = setmetatable({}, { __mode = "k" })
     local gate = {}
 
     function gate:Forget(sender)
         senders[sender] = nil
+    end
+    function gate:Clear()
+        for sender in pairs(senders) do senders[sender] = nil end
     end
 
     function gate:Decide(sender, messageId, now, evaluate)
@@ -36,7 +40,13 @@ function DeliveryGate.new(config)
                 state.count = state.count - 1
             end
         end
-        if state.count >= capacity then return false, "cache_capacity" end
+        -- Saturation quarantine: every unseen decision denied during overflow stays
+        -- denied for at least TTL from its most recent callback, without storing IDs.
+        if (state.overflowUntil and state.overflowUntil > now) or state.count >= capacity then
+            state.overflowUntil = now + ttl
+            return false, "cache_capacity"
+        end
+        state.overflowUntil = nil
         while state.attempts[1] and now - state.attempts[1] >= 1 do
             table.remove(state.attempts, 1)
         end
@@ -46,7 +56,7 @@ function DeliveryGate.new(config)
             local ok, decision, why = pcall(evaluate)
             allow = ok and decision == true
             -- Only internal fixed reason codes may be returned; do not retain thrown errors.
-            reason = ok and type(why) == "string" and #why <= 32 and why or "policy_error"
+            reason = ok and type(why) == "string" and reasons[why] and why or "policy_error"
         end
         state.cache[messageId] = { expires = now + ttl, allow = allow, reason = reason }
         state.count = state.count + 1

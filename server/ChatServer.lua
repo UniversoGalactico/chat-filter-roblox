@@ -11,7 +11,9 @@ if not config.EnableLegacyDeliveryPolicy then
     print("[ChatFilter] Native chat only. No custom delivery hook installed.")
     return
 end
-local filter = require(modules:WaitForChild("ChatFilter"))
+local filterModule = modules:WaitForChild("ChatFilter", 10)
+if not filterModule then warn("[ChatFilter] Missing filter module; no hook installed.") return end
+local filter = require(filterModule)
 local channels = TextChatService:WaitForChild("TextChannels", 10)
 if not channels then warn("[ChatFilter] TextChannels missing; no hook installed.") return end
 local names = {}

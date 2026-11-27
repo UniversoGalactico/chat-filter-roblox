@@ -1,8 +1,16 @@
 -- Run from repository root: lua5.4 tests/regression.lua
-local Policy = dofile("server/TextPolicy.lua")
-local Gate = dofile("server/DeliveryGate.lua")
-local config = dofile("server/ChatConfiguration.lua")
-local data = dofile("server/ProfanityData.lua")
+local Policy, Gate, config, data
+if type(dofile) == "function" then
+    Policy = dofile("server/TextPolicy.lua")
+    Gate = dofile("server/DeliveryGate.lua")
+    config = dofile("server/ChatConfiguration.lua")
+    data = dofile("server/ProfanityData.lua")
+else
+    Policy = require("../server/TextPolicy")
+    Gate = require("../server/DeliveryGate")
+    config = require("../server/ChatConfiguration")
+    data = require("../server/ProfanityData")
+end
 local check = Policy.new(config, data)
 local count = 0
 local function expect(value, wanted, label)
@@ -16,6 +24,11 @@ for _, s in ipairs({"IDIOTA", "imbécil", "IMBÉCIL", "imbe" .. utf8.char(0x301)
     expect(check(s), false, "blocked")
 end
 expect(check("skill yourselfish"), true, "phrase boundary")
+expect(check("ＩＤＩＯＴＡ"), false, "fullwidth ASCII")
+expect(check("kill" .. utf8.char(0xA0) .. "yourself"), false, "NBSP separator")
+expect(check("kill—yourself"), false, "em dash separator")
+expect(check("日本語"), true, "non-Latin text remains native moderated")
+expect(check("こんにちは"), true, "unsupported scripts remain native moderated")
 expect(check("assistant"), true, "word boundary")
 expect(check(""), false, "empty")
 expect(check(nil), false, "nil")
@@ -61,7 +74,14 @@ expect(tiny:Decide("X", "1", 0, yes), true, "capacity first")
 expect(tiny:Decide("X", "2", 0, no), false, "capacity deny")
 expect(tiny:Decide("X", "3", 1.5, yes), false, "capacity full")
 expect(tiny:Decide("X", "2", 1.5, yes), false, "cached deny not evicted")
-expect(tiny:Decide("X", "3", 2, yes), true, "expiry recovers")
+expect(tiny:Decide("X", "3", 2, yes), false, "overflow denial stays stable")
+expect(tiny:Decide("X", "4", 4.1, yes), true, "idle quarantine expires")
+tiny:Clear()
+expect(tiny:Decide("X", "4", 0, yes), true, "clear state")
+local cleanGate = Gate.new(config)
+local allow, reason = cleanGate:Decide("A", "private", 0, function() return false, "private raw text" end)
+expect(allow, false, "unknown reason denied")
+expect(reason, "policy_error", "unknown reason not retained")
 -- Deterministic malformed/random-byte smoke test; no raw input printed.
 local rng = 7
 for i = 1, 1000 do
@@ -74,5 +94,34 @@ for i = 1, 1000 do
     local ok, result = pcall(check, table.concat(parts))
     expect(ok, true, "random input does not crash")
     expect(type(result), "boolean", "random input decision type")
+end
+-- Cross-check one-edit matcher against an independent dynamic-programming reference.
+local function distance(a, b)
+    local prev = {}
+    for j = 0, #b do prev[j] = j end
+    for i = 1, #a do
+        local nextRow = {[0] = i}
+        for j = 1, #b do
+            nextRow[j] = math.min(prev[j]+1, nextRow[j-1]+1, prev[j-1]+(a:byte(i)==b:byte(j) and 0 or 1))
+        end
+        prev = nextRow
+    end
+    return prev[#b]
+end
+local target = "abcdefg"
+local synthetic = Policy.new(fuzzyConfig, {Words={target}, Phrases={}, AllowWords={}, BlockSymbols={}})
+for i = 1, 2000 do
+    rng = (rng * 48271) % 2147483647
+    local candidate = target
+    for _ = 1, rng % 4 do
+        rng = (rng * 48271) % 2147483647
+        local pos = 1 + rng % #candidate
+        local replacement = string.char(97 + rng % 7)
+        local op = rng % 3
+        candidate = candidate:sub(1,pos-1) .. (op==0 and "" or replacement)
+            .. candidate:sub(op==2 and pos or pos+1)
+    end
+    local shouldBlock = #candidate >= 6 and distance(candidate,target) <= 1
+    expect(synthetic(candidate), not shouldBlock, "differential fuzzy")
 end
 print("PASS: " .. count .. " assertions")
