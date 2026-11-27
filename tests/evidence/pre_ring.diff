@@ -9,7 +9,7 @@
  export type Guard = {
   Check: (self: Guard, subject: any, action: string, ...any) -> (boolean, string?, number?),
   Begin: (self: Guard, subject: any, action: string, ...any) -> (Token?, string?, number?),
-@@ -66,25 +66,13 @@
+@@ -67,25 +67,13 @@
   return math.max(0,-residual)
  end
  local function waitFor(b: Bucket, q: Quota, now: number): number
@@ -42,13 +42,13 @@
  end
  local function charge(b: Bucket,q: Quota,now: number)
   local i=(b.Head+b.Count-1)%q.Limit+1
-@@ -202,11 +190,8 @@
+@@ -203,11 +191,8 @@
    end)
    return ok and allowed==true
   end
 - if not plain(v) then return false end
-- local active=budget.Active
-- if active==nil then active={};budget.Active=active end
+- local active: {[any]: boolean}=budget.Active or {}
+- budget.Active=active
 - if active[v] then return false end
 - active[v]=true
 + if not plain(v) or budget.Active[v] then return false end
@@ -56,7 +56,7 @@
   if kind=="record" then
    local children=r.Fields :: {[string]: Argument}
    for k in next,v do
-@@ -234,7 +219,7 @@
+@@ -235,7 +220,7 @@
    end
    if count~=largest then return false end
   end
@@ -65,7 +65,7 @@
   return true
  end
  local function invoke(fn: any,...: any): (boolean,any)
-@@ -343,7 +328,7 @@
+@@ -344,7 +329,7 @@
    end
    local n=select("#",...)
    if n>#a.Args then return false,"ARG_COUNT",nil,nil end

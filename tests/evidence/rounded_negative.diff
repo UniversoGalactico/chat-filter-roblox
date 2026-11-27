@@ -1,6 +1,6 @@
 --- RemoteGuardRoblox.lua
 +++ rounded_negative.lua
-@@ -63,7 +63,7 @@
+@@ -64,7 +64,7 @@
   if d<window then return window-d end
   local z=d-now
   local residual=(now-(d-z))+(-earlier-z)

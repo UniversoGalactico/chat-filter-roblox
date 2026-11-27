@@ -1,5 +1,5 @@
 {
-  "source_sha256": "007e398cfcd12bcd08ce45e88591cd479c3ec6428029460a929d1ebe7d433947",
+  "source_sha256": "8fd2c7852a3c2c05dae4bd0073eb75c13572866fad3d7ec156771ef2a1fefd43",
   "campaign_sha256": "cbd2c203c32f48576ac3611c7fa043703cd37a291217934a0e8d7fe9af30a16e",
   "tool_pins": {
     "numeric_fuzz320.py": "5d4cf91db579d2097cac2d13b9a77bef0bbad54878a47ad493a5d502d6f3e4b0",
@@ -162,6 +162,6 @@
       "witnesses": []
     }
   ],
-  "elapsed_seconds": 5.264944380998713,
+  "elapsed_seconds": 9.477188169999863,
   "scope": "finite arithmetic, integer/number/UTF8 acceptance, exact represented quota expiry and sweep; bundled Luau CLI only, not formal or Roblox verification"
 }
