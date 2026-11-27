@@ -329,4 +329,100 @@ for _, spec in ipairs({{1,1,1},{3,5,24},{20,60,256},{5,2.5,6},{2,10,32}}) do
         end
     end
 end
+-- Bounded exhaustive black-box comparison. Every length-five trace over these
+-- nine operations is replayed from an empty gate. This is not an unbounded proof.
+local ops={
+    {sender="A",scope="X",id="1",delta=0},
+    {sender="A",scope="X",id="2",delta=0},
+    {sender="A",scope="Y",id="1",delta=0},
+    {sender="B",scope="X",id="1",delta=0},
+    {sender="A",scope="X",id="1",delta=0.5},
+    {sender="A",scope="Y",id="2",delta=1},
+    {sender="A",scope="X",id="1",delta=2},
+    {forget="A"},
+    {clear=true},
+}
+local traces=0
+local path={}
+for _, spec in ipairs({{1,1,1},{1,2,2},{2,2,3}}) do
+    local limit,ttl,capacity=spec[1],spec[2],spec[3]
+    local function replay()
+        local gate=Gate.new({MessagesPerSecond=limit,DecisionTTL=ttl,MaxCachedMessages=capacity})
+        local models,now={},0
+        for _,index in ipairs(path) do
+            local op=ops[index]
+            if op.clear then gate:Clear() models={}
+            elseif op.forget then gate:Forget(op.forget) models[op.forget]=nil
+            else
+                now=now+op.delta
+                local model=models[op.sender]
+                if not model then
+                    model={cache={},accepted={},last=0,quarantine=0}
+                    models[op.sender]=model
+                end
+                local expected,why=reference(model,op.scope..":"..op.id,now,limit,ttl,capacity)
+                local actual,reason=gate:Admit(op.sender,op.id,now,op.scope)
+                expect(actual,expected,"exhaustive admission")
+                expect(reason,why,"exhaustive reason")
+            end
+        end
+        traces=traces+1
+    end
+    local function enumerate(depth)
+        if depth==5 then replay() return end
+        for i=1,#ops do
+            path[depth+1]=i
+            enumerate(depth+1)
+        end
+        path[depth+1]=nil
+    end
+    enumerate(0)
+end
+assert(traces==3*9^5)
+print("PASS: "..traces.." bounded exhaustive admission traces")
+
+-- Exact token/phrase trie versus a simple independent substring-of-token-list oracle.
+local vocabulary={"aa","bb","cc","dd","ee"}
+local function draw(n)
+    rng=(rng*48271)%2147483647
+    return rng%n+1
+end
+local function tokens(n)
+    local result={}
+    for i=1,n do result[i]=vocabulary[draw(#vocabulary)] end
+    return result
+end
+local function containsSequence(input,pattern)
+    for first=1,#input-#pattern+1 do
+        local same=true
+        for j=1,#pattern do
+            if input[first+j-1]~=pattern[j] then same=false break end
+        end
+        if same then return true end
+    end
+    return false
+end
+for _=1,80 do
+    local data={Words={},Phrases={},AllowWords={},BlockSymbols={}}
+    local patterns={}
+    for i=1,draw(5) do
+        local p=tokens(1)
+        data.Words[i]=p[1]
+        patterns[#patterns+1]=p
+    end
+    for i=1,draw(10) do
+        local p=tokens(draw(5))
+        data.Phrases[i]=table.concat(p," ")
+        patterns[#patterns+1]=p
+    end
+    local check=Policy.new(config,data)
+    for _=1,100 do
+        local input=tokens(draw(12))
+        local expected=true
+        for _,p in ipairs(patterns) do
+            if containsSequence(input,p) then expected=false break end
+        end
+        expect(check(table.concat(input," ")),expected,"generated token sequence oracle")
+    end
+end
 print("PASS: " .. count .. " assertions")
