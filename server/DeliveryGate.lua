@@ -30,21 +30,24 @@ function DeliveryGate.new(config)
     end
     function gate:Admit(sender, messageId, now, scope)
         if scope == nil then scope = DEFAULT_SCOPE end
-        if not validSender(sender) or not validSender(scope)
-            or type(messageId) ~= "string" or #messageId == 0 or #messageId > 128 then
+        if type(messageId) ~= "string" or #messageId == 0 or #messageId > 128 then
             return false, "invalid_identity"
         end
+        -- An existing entry proves that its key has already passed validation.
+        -- Raw map lookup performs no user equality callbacks and allocates nothing.
+        local state = senders[sender]
+        if not state and not validSender(sender) then return false, "invalid_identity" end
+        local bucket = state and state.scopes[scope]
+        if not bucket and not validSender(scope) then return false, "invalid_identity" end
         if type(now) ~= "number" or not (now >= 0 and now <= MAX_CLOCK) then
             return false, "invalid_clock"
         end
-        local state = senders[sender]
         if not state then
             state = { scopes = {}, order = {}, attempts = {}, head = 1, count = 0, last = now }
             senders[sender] = state
         end
         if now < state.last then return false, "clock_regression" end
         state.last = now
-        local bucket = state.scopes[scope]
         local cached = bucket and bucket.ids[messageId]
         if cached and cached.expires > now then return cached.allow, cached.reason end
         -- Equal TTL plus monotone time makes expiry FIFO.

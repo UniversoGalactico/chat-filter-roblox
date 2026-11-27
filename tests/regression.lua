@@ -100,6 +100,15 @@ expect(gate:Admit("A", "badclock", 0/0), false, "nan clock")
 expect(gate:Admit("A", "badclock", -1), false, "negative clock")
 expect(gate:Admit("A", "badclock", 2^41), false, "clock precision bound")
 expect(gate:Admit(nil, "bad", 0), false, "nil sender")
+local invalidKeys = {false,true,math.huge,-math.huge,0/0,"",string.rep("a",129),function()end}
+for _,key in ipairs(invalidKeys) do
+    local a,r=gate:Admit(key,"id",0/0)
+    expect(a,false,"invalid sender with invalid clock")
+    expect(r,"invalid_identity","sender validation before clock")
+    local b,s=gate:Admit("A","id",0/0,key)
+    expect(b,false,"invalid scope with invalid clock")
+    expect(s,"invalid_identity","scope validation before clock")
+end
 expect(gate:Admit(0/0, "bad", 0), false, "nan sender")
 for _,bad in ipairs({false,true,math.huge,-math.huge,"",string.rep("x",129),function() end}) do
     expect(gate:Admit(bad,"bad",0),false,"unsupported sender key")

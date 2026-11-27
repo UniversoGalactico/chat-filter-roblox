@@ -9,6 +9,8 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["gate_sender_validation","DeliveryGate.lua","regression.lua","if not state and not validSender(sender) then return false, \"invalid_identity\" end","if false then return false, \"invalid_identity\" end"],
+  ["gate_scope_validation","DeliveryGate.lua","regression.lua","if not bucket and not validSender(scope) then return false, \"invalid_identity\" end","if false then return false, \"invalid_identity\" end"],
   ["adapter_context_denial_quota","ChatFilter.lua","adapter.lua","        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)\n        if not admitted then return false, admissionReason end\n        local permitted, reason = context(sender, receiver, name)\n        if not permitted then return false, reason end","        local permitted, reason = context(sender, receiver, name)\n        if not permitted then return false, reason end\n        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)\n        if not admitted then return false, admissionReason end"],
   [
     "adapter_invalid_generation",

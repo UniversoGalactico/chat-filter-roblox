@@ -26,10 +26,11 @@ local function timing(run)
     local digest=run()
     return os.clock()-before,digest
 end
-local function compare(name, baseline, current, n)
+local function compare(name, baseline, current, n, trials)
+    trials=trials or 3
     local bTimes,cTimes={},{}
     local digest
-    for trial=1,3 do
+    for trial=1,trials do
         local bt,bd,ct,cd
         if trial%2==1 then
             bt,bd=timing(baseline)
@@ -45,7 +46,8 @@ local function compare(name, baseline, current, n)
     end
     table.sort(bTimes)
     table.sort(cTimes)
-    print(string.format("BENCH %s n=%d baseline_ms=%.3f current_ms=%.3f ratio=%.3f checksum=%d",name,n,bTimes[2]*1000,cTimes[2]*1000,bTimes[2]/math.max(cTimes[2],1e-9),digest))
+    local median=math.floor(trials/2)+1
+    print(string.format("BENCH %s n=%d trials=%d baseline_ms=%.3f current_ms=%.3f ratio=%.3f checksum=%d",name,n,trials,bTimes[median]*1000,cTimes[median]*1000,bTimes[median]/math.max(cTimes[median],1e-9),digest))
 end
 
 local function syntheticWord(i, len)
@@ -123,7 +125,36 @@ end
 for _, mode in ipairs({"unique","saturated","fanout"}) do
     compare("admission_"..mode,gateRunner(true,mode,30000),gateRunner(false,mode,30000),30000)
 end
-for _,mode in ipairs({"unique","saturated","fanout"}) do
-    compare("current_vs_lite_"..mode,gateRunner(false,mode,30000,recentBaseline),gateRunner(false,mode,30000),30000)
+-- Longer workloads isolate lookup cost from string generation, using identical
+-- pre-built inputs and five alternating measurements. The mixed case has
+-- independent sender objects and two channel objects.
+local function buildWorkload(mode,n)
+    local ids,times,owners,channels={},{},{},{}
+    local senderList,channelList={{},{},{},{}},{{},{}}
+    for i=1,n do
+        local j=mode=="fanout" and math.floor((i-1)/50) or i
+        local mixed=mode=="mixed"
+        ids[i]=tostring(j)
+        times[i]=j*(mode=="saturated" and 0.005 or 0.06)
+        owners[i]=senderList[mixed and (i%4+1) or 1]
+        channels[i]=channelList[mixed and (math.floor(i/4)%2+1) or 1]
+    end
+    return {ids,times,owners,channels}
+end
+local function prebuiltRunner(implementation,work,n)
+    return function()
+        local gate=implementation.new(gateConfig)
+        local digest=0
+        for i=1,n do
+            local ok=gate:Admit(work[3][i],work[1][i],work[2][i],work[4][i])
+            digest=(digest*31+(ok and 1 or 0))%2147483647
+        end
+        return digest
+    end
+end
+for _,mode in ipairs({"unique","saturated","fanout","mixed"}) do
+    local n=300000
+    local work=buildWorkload(mode,n)
+    compare("current_vs_lite_"..mode,prebuiltRunner(recentBaseline,work,n),prebuiltRunner(currentGate,work,n),n,5)
 end
 print("PASS: benchmark decision checksums")
