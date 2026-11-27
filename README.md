@@ -1,72 +1,41 @@
-# 🛡️ ChatFilter Lite – Free Multilingual Chat Moderation for Roblox
+# RemoteGuardRoblox
 
-A free, multilingual chat moderation system with **double‑layer filtering**, **Levenshtein evasion detection**, and **anti‑grooming tools**. Built for developers who want real control over their game's chat.
+A small server-side admission gate for client-triggered game actions. **1.0.0-rc.1** — candidate, MIT, no runtime dependencies.
 
----
+Formerly ChatFilter. This is a deliberate redesign, not an upgrade to its chat API. Native Roblox chat needs no additional filter. Historical implementations remain in Git history and the prior development branch.
 
-## ✨ Why this exists
+## Start
 
-In January 2026, I was scammed in a Roblox game. I lost 79 Robux. I submitted clear evidence to Roblox support and was ignored.  
+Install [RemoteGuardRoblox.lua](RemoteGuardRoblox.lua) in ServerScriptService as `RemoteGuard`.
 
-I could have held a grudge. Instead, I built a chat filter that catches what Roblox misses – and gave it away for free.  
+```lua
+local RemoteGuard = require(game.ServerScriptService.RemoteGuard)
+local gate = RemoteGuard.new({
+    Global = {Limit = 20, Window = 1},
+    Actions = {
+        Buy = {
+            Quota = {Limit = 3, Window = 1},
+            Args = {{Type = "string", MaxBytes = 64}},
+            Authorize = function(player, itemId)
+                return player:GetAttribute("ShopOpen") == true
+            end,
+        },
+    },
+})
 
-I'm 16 years old. This is what I know how to do.
+remote.OnServerEvent:Connect(function(player, itemId)
+    if not gate:Check(player, "Buy", itemId) then return end
+    -- Server must still verify inventory, price, balance, distance and transaction rules.
+end)
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    gate:Forget(player)
+end)
+```
 
----
+Use a server-owned player identity and a fixed server-selected action name. Forward all client arguments with `...` when exact arity matters. The gate never installs callbacks or runs a gameplay handler.
 
-## 🚀 Features
+[API and limitations](docs/API.md) · [Tests](docs/TESTING.md) · [Integration example](examples/Remote.server.lua) · [AI guide](AGENTS.md)
 
-- **Multilingual insult detection** (Spanish, English, Portuguese)  
-- **Levenshtein distance** – catches evasion attempts like `korer`, `hoder`, `m1erd4`  
-- **Emoji translation** – blocks sexual emojis like 🍆, 💦, 🥵  
-- **Rate limiting** – anti‑spam protection  
-- **White‑list for innocent words** – avoids false positives  
-- **~ detection** – blocks simulated moaning  
+Not an anti-cheat, remote firewall, transaction manager or authorization substitute. It only admits requests for further server-side processing. Follow [Roblox client-server security guidance](https://create.roblox.com/docs/scripting/security/client-server-boundary).
 
----
-
-## 📦 How to install (5 minutes)
-
-### Server
-1. Download all `.lua` files from the `server/` folder.  
-2. In Roblox Studio, place them inside **ServerScriptService/ServerModules**.  
-3. Place `ChatServer.lua` directly in **ServerScriptService**.
-
-### Client
-1. Download `ChatClient.lua` from the `client/` folder.  
-2. Place it in **ReplicatedStorage/ClientModules**.  
-3. Create a **ScreenGui** in StarterGui and add a LocalScript that calls `ChatClient.Iniciar(gui)`.
-
-### Network
-1. Create a **RemoteEvent** named `ChatMessage` inside **ReplicatedStorage**.  
-
-That's it. The system works automatically – no configuration needed.  
-*(Optional) Customize words and sensitivity by editing `ChatConfig.lua` and `ProfanityData.lua`.*
-
----
-
-## 📁 Files
-
-| File | Type | Location | Purpose |
-|------|------|----------|---------|
-| `ChatConfig.lua` | ModuleScript | ServerModules | All configurable constants |
-| `ProfanityData.lua` | ModuleScript | ServerModules | Banned words, phrases, emojis, white‑list |
-| `ChatFilter.lua` | ModuleScript | ServerModules | Core filtering logic (normalization, Levenshtein) |
-| `ChatServer.lua` | Script | ServerScriptService | Receives messages, validates, broadcasts |
-| `ChatClient.lua` | ModuleScript | ClientModules | Chat GUI, sends messages to server |
-
----
-
-## 📝 License
-
-MIT – do whatever you want, just keep the copyright notice.
-
----
-
-## 🌍 Languages
-
-The filter supports **Spanish, English, and Portuguese** by default. You can easily add more by editing `ProfanityData.lua`.
-
----
-
-If this project helped you, consider starring ⭐ the repo. It means a lot.
+MIT — [LICENSE](LICENSE).
