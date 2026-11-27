@@ -96,7 +96,7 @@ function RemoteGuard.new(config: Config): Guard
 	local clock=config.Clock or os.clock
 	local actions: {[string]: Action}={}
 	assert(type(config.Actions)=="table" and getmetatable(config.Actions)==nil,"INVALID_ACTIONS")
-	local actionCount=0
+	local actionCount,slots=0,global.Limit
 	for name,a in next,config.Actions do
 		actionCount+=1
 		assert(actionCount<=64 and type(name)=="string" and #name>0 and #name<=64,"INVALID_ACTION")
@@ -125,9 +125,12 @@ function RemoteGuard.new(config: Config): Guard
 			end
 			args[i]=table.clone(r)
 		end
-		actions[name]={Quota=quota(a.Quota),Args=args,Authorize=a.Authorize}
+		local q=quota(a.Quota)
+		slots+=q.Limit
+		actions[name]={Quota=q,Args=args,Authorize=a.Authorize}
 	end
 	assert(actionCount>0,"NO_ACTIONS")
+	assert(capacity*slots<=1000000,"TIMESTAMP_BUDGET")
 	-- Worst-case timestamp slots are bounded by the global quota and configured
 	-- per-action quotas, even for idle subjects; callers must Forget on departure.
 	local subjects: {[any]: Subject}={}
@@ -167,7 +170,8 @@ function RemoteGuard.new(config: Config): Guard
 		local n=select("#",...)
 		if n>#a.Args then return false,"ARG_COUNT",nil end
 		for i,r in ipairs(a.Args) do
-			if not validArg(select(i,...),r) then return false,"INVALID_ARGUMENT",i end
+			local value: any = if i<=n then select(i,...) else nil
+			if not validArg(value,r) then return false,"INVALID_ARGUMENT",i end
 		end
 		if a.Authorize then
 			busy=true

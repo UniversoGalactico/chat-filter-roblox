@@ -97,4 +97,12 @@ suite("independent sliding window model",function()
   eq(ok,expected);eq(why,reason)
  end
 end)
+suite("multiple optional arguments omitted",function()
+ now=0;local c=config();c.Actions.Ping.Args={{Type="boolean",Optional=true},{Type="number",Optional=true},{Type="string",Optional=true}}
+ local g=RemoteGuard.new(c);eq(g:Check(1,"Ping"),true);eq(g:Check(1,"Ping",nil,3),true)
+end)
+suite("default clock and memory budget",function()
+ local c=config();c.Clock=nil;local g=RemoteGuard.new(c);eq(g:Check(1,"Ping"),true)
+ c.MaxSubjects=4096;c.Global.Limit=256;eq(pcall(RemoteGuard.new,c),false)
+end)
 print("PASS "..count.." suites")

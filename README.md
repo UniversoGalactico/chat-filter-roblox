@@ -23,8 +23,9 @@ local gate = RemoteGuard.new({
     },
 })
 
-remote.OnServerEvent:Connect(function(player, itemId)
-    if not gate:Check(player, "Buy", itemId) then return end
+remote.OnServerEvent:Connect(function(player, ...)
+    if not gate:Check(player, "Buy", ...) then return end
+    local itemId = ...
     -- Server must still verify inventory, price, balance, distance and transaction rules.
 end)
 game:GetService("Players").PlayerRemoving:Connect(function(player)
