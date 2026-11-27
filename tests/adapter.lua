@@ -168,4 +168,22 @@ local bad=setmetatable({}, {__index=function() error("private marker must not es
 assert(not second(bad,sb),"callback exceptions deny")
 assert(limited:GetCounts().policy_error==1)
 limited:Destroy()
+-- Group and mute denials cannot grant additional sending budget.
+local budget=Filter.new({MessagesPerSecond=1,DecisionTTL=2,MaxCachedMessages=8,ScopeAttributes={Match="MatchId"}})
+local checkBudget=budget:ForChannel(match)
+rejoined.group,b.group="A","B"
+now=20
+local blocked={TextChannel=match,TextSource=sa,MessageId="group-denied"}
+assert(not checkBudget(blocked,sb))
+b.group="A"
+assert(checkBudget(blocked,sb),"context changed, same admission")
+assert(not checkBudget({TextChannel=match,TextSource=sa,MessageId="extra"},sb),"scope-denied send consumed quota")
+now=21
+rejoined.muted=true
+assert(not checkBudget({TextChannel=match,TextSource=sa,MessageId="mute-denied"},sb))
+rejoined.muted=false
+assert(not checkBudget({TextChannel=match,TextSource=sa,MessageId="after-mute"},sb),"mute-denied send consumed quota")
+now=22
+assert(checkBudget({TextChannel=match,TextSource=sa,MessageId="new-window"},sb))
+budget:Destroy()
 print("PASS: explicit channel ownership, recipient variants, lifecycle, shared quotas and context isolation")

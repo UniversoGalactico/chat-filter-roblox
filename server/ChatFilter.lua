@@ -57,10 +57,12 @@ function ChatFilter.new(options)
             or not receiver or receiver.Parent ~= Players or leaving[receiver] then
             return false, "invalid_identity"
         end
-        local permitted, reason = context(sender, receiver, name)
-        if not permitted then return false, reason end
+        -- Charge once per valid logical send even if a recipient fails the group rule.
+        -- Context is never cached: a mute or group change can still deny a cached admission.
         local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)
         if not admitted then return false, admissionReason end
+        local permitted, reason = context(sender, receiver, name)
+        if not permitted then return false, reason end
         if not evaluate then return true, "allow" end
         local text = message.Text -- legacy only; never cache this verdict or content
         if type(text) ~= "string" or text == "" then

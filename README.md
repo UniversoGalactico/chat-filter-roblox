@@ -13,7 +13,7 @@ channel.ShouldDeliverCallback = policy:ForChannel(channel)
 script.Destroying:Connect(function() policy:Destroy() end)
 ```
 
-The default policy limits new messages to three per second per sender, across channels bound to one controller. Server code may set ChatFilterMuted=true on a Player. To restrict your Match channel to matching server-owned MatchId attributes:
+The default policy limits new messages with valid sender/channel/recipient identity to three per second per sender, across channels bound to one controller, even when group or mute rules withhold delivery. Server code may set ChatFilterMuted=true on a Player. To restrict your Match channel to matching server-owned MatchId attributes:
 
 ```lua
 local policy = Filter.new({ScopeAttributes = {Match = "MatchId"}})

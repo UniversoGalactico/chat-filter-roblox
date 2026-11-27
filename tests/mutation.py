@@ -9,6 +9,7 @@ import tempfile
 import sys
 
 MUTANTS = [
+  ["adapter_context_denial_quota","ChatFilter.lua","adapter.lua","        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)\n        if not admitted then return false, admissionReason end\n        local permitted, reason = context(sender, receiver, name)\n        if not permitted then return false, reason end","        local permitted, reason = context(sender, receiver, name)\n        if not permitted then return false, reason end\n        local admitted, admissionReason = gate:Admit(sender, message.MessageId, os.clock(), channel)\n        if not admitted then return false, admissionReason end"],
   [
     "adapter_invalid_generation",
     "ChatFilter.lua",

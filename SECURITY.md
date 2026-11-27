@@ -11,3 +11,5 @@ Native TextChatService owns message transport, filtering, recipient permissions,
 - Limits: pure models and mocks do not establish real engine permission behavior, integrated callback compatibility or moderation accuracy. The previous experimental public-field pipeline is historical, not shipped.
 
 Report minimal synthetic reproductions without messages, identities or secrets.
+
+Admission is charged before context checks for a valid sender/channel/recipient identity. Group and mute denials do not reset quota; recipient context is still reevaluated for each callback.
