@@ -11,3 +11,5 @@ Stop the session and remove the test model. It never reads or logs conversation 
 Enable PlatformIntegratedChat in Studio before the two-client test. Roblox documents that TextChannel:SendAsync and message-text access are unsupported in this mode. Use the built-in input, or a native TextChannelWindow with Target set to ChatFilterTest if the channel tab is unavailable. Do not send or render text yourself. A native window can be inserted in the client Explorer under a ScreenGui during a test. If chat is unavailable for the test accounts, report the delivery test as inconclusive. The sender's own echo is not evidence of receipt.
 
 [Official integrated-chat setup](https://create.roblox.com/docs/chat/platform-integrated-chat)
+
+CI executes this exact Smoke.server.lua against a small engine double to catch setup and cleanup errors. This does not substitute for the two-client engine test.

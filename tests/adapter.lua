@@ -35,6 +35,7 @@ local function source(p,ch,canSend) return {UserId=p.UserId,Parent=ch,CanSend=ca
 local a,b,c=player(1),player(2),player(3)
 local sa,sb,sc=source(a,match,true),source(b,match,true),source(c,match,false)
 local warnings=0
+local now=10
 local env=setmetatable({
     warn=function() warnings=warnings+1 end,
     game={GetService=function(_,name) return assert(({Players=players,TextChatService=chat})[name]) end},
@@ -43,7 +44,7 @@ local env=setmetatable({
         if failLegacyRequire and (name=="TextPolicy" or name=="ProfanityData" or name=="ChatConfiguration") then error("legacy module unavailable") end
         return assert(modules[name])
     end,
-    os={clock=function() return 10 end},
+    os={clock=function() return now end},
 },{__index=_G})
 local Filter=assert(loadfile("server/ChatFilter.lua","t",env))()
 local legacy=Filter.new({LegacyText=true})
@@ -144,4 +145,27 @@ assert(not pcall(Filter.new,{MessagesPerSecond=false}))
 assert(not pcall(Filter.new,false))
 assert(not pcall(Filter.new,{MessagePerSecond=3}))
 assert(not pcall(Filter.new,setmetatable({},{})))
-print("PASS: explicit channel ownership, recipient variants, lifecycle and context isolation")
+-- Releasing/rebinding must not create a new sender rate budget.
+local limited=Filter.new({MessagesPerSecond=1,DecisionTTL=2,MaxCachedMessages=8})
+local first=limited:ForChannel(match)
+local test={TextChannel=match,TextSource=sa,MessageId="budget"}
+assert(first(test,sb))
+limited:ReleaseChannel(match)
+local second=limited:ForChannel(match)
+assert(second(test,sb),"same ID shares admission after rebind")
+test.MessageId="different"
+assert(not second(test,sb),"rebind cannot reset quota")
+local otherCallback=limited:ForChannel(other)
+local otherSource,otherReceiver=source(rejoined,other,true),source(b,other,true)
+assert(not otherCallback({TextChannel=other,TextSource=otherSource,MessageId="budget"},otherReceiver),"quota spans channels")
+now=11
+test.MessageId="after-window"
+assert(second(test,sb))
+now=10.9
+assert(not second(test,sb),"regressed clock denied even on cached allow")
+now=12
+local bad=setmetatable({}, {__index=function() error("private marker must not escape callback") end})
+assert(not second(bad,sb),"callback exceptions deny")
+assert(limited:GetCounts().policy_error==1)
+limited:Destroy()
+print("PASS: explicit channel ownership, recipient variants, lifecycle, shared quotas and context isolation")
