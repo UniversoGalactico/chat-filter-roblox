@@ -116,6 +116,10 @@ expect(channelsGate:Admit("P","same",2,ch3),true,"expired scope reused")
 expect(channelsGate:Admit("P","same",2,ch1),true,"empty bucket was safely removed")
 expect(channelsGate:Admit("P","same",2,ch2),false,"shared quota across scopes")
 expect(channelsGate:Admit("P","same",2,0/0),false,"invalid scope")
+local boundary = Gate.new({MessagesPerSecond=1,DecisionTTL=2,MaxCachedMessages=3})
+expect(boundary:Admit("P","a",0),true,"boundary first")
+expect(boundary:Admit("P","b",0),false,"boundary deny")
+expect(boundary:Admit("P","b",2),true,"denial expires exactly at TTL")
 local ring = Gate.new({MessagesPerSecond=1, DecisionTTL=1, MaxCachedMessages=1})
 for i = 0, 1000 do expect(ring:Admit("R", "same", i), true, "ring wraps") end
 -- Deterministic malformed/random-byte smoke test; no raw input printed.
