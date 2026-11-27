@@ -280,7 +280,10 @@ local function mock(group)
 end
 assert(context(mock(&quot;A&quot;),mock(&quot;A&quot;),&quot;Test&quot;))
 assert(not context(mock(&quot;A&quot;),mock(&quot;B&quot;),&quot;Test&quot;))
-print(&quot;[ChatFilter TEST] PASS: 7 local checks. Native delivery is NOT yet verified.&quot;)
+-- Two additional quota invariants and a malformed input check.
+assert(not gate:Admit(&quot;A&quot;,&quot;another&quot;,0,&quot;second channel&quot;))
+assert(not gate:Admit(&quot;A&quot;,&quot;bad-clock&quot;,0/0))
+assert(not context(mock(&quot;A&quot;),mock(nil),&quot;Test&quot;))
 
 -- Two clients: native delivery check. No automatic sends or custom transport.
 local NAME, GROUP = &quot;ChatFilterTest&quot;, &quot;ChatFilterTestGroup&quot;
@@ -289,9 +292,26 @@ local controller = Filter.new({ScopeAttributes={[NAME]=GROUP}})
 local channel = Instance.new(&quot;TextChannel&quot;)
 channel.Name = NAME
 channel.Parent = Chat
-channel.ShouldDeliverCallback = controller:ForChannel(channel)
+
+-- Real Roblox Instances, synthetic callback arguments: no player chat is sent.
+local first = controller:ForChannel(channel)
+assert(not pcall(controller.ForChannel,controller,channel),&quot;duplicate binding must fail&quot;)
+assert(not first(nil,nil),&quot;malformed callback must deny&quot;)
+controller:ReleaseChannel(channel)
+assert(not first(nil,nil),&quot;revoked callback must deny&quot;)
+assert(controller:GetCounts().stopped==1,&quot;revocation counted&quot;)
+local current = controller:ForChannel(channel)
+assert(not first(nil,nil),&quot;previous generation cannot revive&quot;)
+assert(controller:GetCounts().stopped==2,&quot;stale callback counted&quot;)
+assert(not current(nil,nil),&quot;new callback rejects malformed message&quot;)
+local snapshot = controller:GetCounts()
+snapshot.stopped = 0
+assert(controller:GetCounts().stopped==2,&quot;counter snapshot must be independent&quot;)
+print(&quot;[ChatFilter TEST] PASS: 18 local checks. Native delivery is NOT yet verified.&quot;)
+channel.ShouldDeliverCallback = current
 local active, joined = true, 0
 local assigned = {}
+script:SetAttribute(&quot;ShowCounts&quot;,0)
 local function add(player)
     if not active or player.Parent~=Players or assigned[player] then return end
     if player:GetAttribute(GROUP)~=nil then warn(&quot;[TEST] Existing group attribute; skipped&quot;) return end
@@ -304,7 +324,11 @@ local function add(player)
         if ok and source and source.Parent==channel then source:Destroy() end
         return
     end
-    if not ok or not source then warn(&quot;[TEST] Native membership unavailable; stop integration test&quot;) end
+    if not ok or not source then
+        warn(&quot;[TEST] Native membership unavailable; local checks are independent. Delivery test not verified.&quot;)
+        return
+    end
+    print(&quot;[TEST] Native membership ready, group&quot;,group)
 end
 local added=Players.PlayerAdded:Connect(add)
 local removing=Players.PlayerRemoving:Connect(function(player)
@@ -321,6 +345,7 @@ script.Destroying:Connect(function()
     added:Disconnect()
     removing:Disconnect()
     stats:Disconnect()
+    controller:ReleaseChannel(channel)
     controller:Destroy()
     channel:Destroy()
     for player in pairs(assigned) do

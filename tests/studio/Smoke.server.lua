@@ -21,7 +21,10 @@ local function mock(group)
 end
 assert(context(mock("A"),mock("A"),"Test"))
 assert(not context(mock("A"),mock("B"),"Test"))
-print("[ChatFilter TEST] PASS: 7 local checks. Native delivery is NOT yet verified.")
+-- Two additional quota invariants and a malformed input check.
+assert(not gate:Admit("A","another",0,"second channel"))
+assert(not gate:Admit("A","bad-clock",0/0))
+assert(not context(mock("A"),mock(nil),"Test"))
 
 -- Two clients: native delivery check. No automatic sends or custom transport.
 local NAME, GROUP = "ChatFilterTest", "ChatFilterTestGroup"
@@ -30,9 +33,26 @@ local controller = Filter.new({ScopeAttributes={[NAME]=GROUP}})
 local channel = Instance.new("TextChannel")
 channel.Name = NAME
 channel.Parent = Chat
-channel.ShouldDeliverCallback = controller:ForChannel(channel)
+
+-- Real Roblox Instances, synthetic callback arguments: no player chat is sent.
+local first = controller:ForChannel(channel)
+assert(not pcall(controller.ForChannel,controller,channel),"duplicate binding must fail")
+assert(not first(nil,nil),"malformed callback must deny")
+controller:ReleaseChannel(channel)
+assert(not first(nil,nil),"revoked callback must deny")
+assert(controller:GetCounts().stopped==1,"revocation counted")
+local current = controller:ForChannel(channel)
+assert(not first(nil,nil),"previous generation cannot revive")
+assert(controller:GetCounts().stopped==2,"stale callback counted")
+assert(not current(nil,nil),"new callback rejects malformed message")
+local snapshot = controller:GetCounts()
+snapshot.stopped = 0
+assert(controller:GetCounts().stopped==2,"counter snapshot must be independent")
+print("[ChatFilter TEST] PASS: 18 local checks. Native delivery is NOT yet verified.")
+channel.ShouldDeliverCallback = current
 local active, joined = true, 0
 local assigned = {}
+script:SetAttribute("ShowCounts",0)
 local function add(player)
     if not active or player.Parent~=Players or assigned[player] then return end
     if player:GetAttribute(GROUP)~=nil then warn("[TEST] Existing group attribute; skipped") return end
@@ -45,7 +65,11 @@ local function add(player)
         if ok and source and source.Parent==channel then source:Destroy() end
         return
     end
-    if not ok or not source then warn("[TEST] Native membership unavailable; stop integration test") end
+    if not ok or not source then
+        warn("[TEST] Native membership unavailable; local checks are independent. Delivery test not verified.")
+        return
+    end
+    print("[TEST] Native membership ready, group",group)
 end
 local added=Players.PlayerAdded:Connect(add)
 local removing=Players.PlayerRemoving:Connect(function(player)
@@ -62,6 +86,7 @@ script.Destroying:Connect(function()
     added:Disconnect()
     removing:Disconnect()
     stats:Disconnect()
+    controller:ReleaseChannel(channel)
     controller:Destroy()
     channel:Destroy()
     for player in pairs(assigned) do
