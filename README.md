@@ -48,7 +48,7 @@ For a yielding handler, set `MaxInFlight` on its action; the adapter reserves a 
 
 ## Studio test
 
-Import the QuickTest model produced by `python3 tests/build_studio_model.py --out RemoteGuardQuickTest.rbxmx` into ServerScriptService and use **Play (F5)** in a blank Studio place. It runs engine datatype checks and actual client-server calls. No API access or publishing needed. See [test instructions](tests/STUDIO.md). The maintainer reported 24/24 passing in Studio on rc.2. The stable runtime differs only in version strings. [Download release](https://github.com/UniversoGalactico/chat-filter-roblox/releases/tag/v1.0.0).
+Import the QuickTest model produced by `python3 tests/build_studio_model.py --out RemoteGuardQuickTest.rbxmx` into ServerScriptService and use **Play (F5)** in a blank Studio place. It runs engine datatype checks and actual client-server calls. No API access or publishing needed. See [test instructions](tests/STUDIO.md). The maintainer reported 24/24 passing in Studio on rc.2. The stable runtime differs only in version strings. [Download release](https://github.com/UniversoGalactico/RemoteGuardRoblox/releases/tag/v1.0.0).
 
 ## Important limits
 
