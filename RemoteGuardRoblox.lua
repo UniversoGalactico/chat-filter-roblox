@@ -1,6 +1,6 @@
 --!strict
 -- Server-side request admission. No implicit remotes, tasks, or gameplay effects.
-local RemoteGuard = {VERSION = "1.0.0-rc.2"}
+local RemoteGuard = {VERSION = "1.0.0"}
 export type Quota = {Limit: number, Window: number}
 export type Argument = {
  Type: string, Optional: boolean?, Min: number?, Max: number?, Integer: boolean?,

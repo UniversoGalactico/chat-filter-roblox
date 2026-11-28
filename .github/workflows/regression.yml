@@ -44,3 +44,25 @@ jobs:
             "$RUNNER_TEMP/luau/luau-compile" "$file" >/dev/null
           done
           python3 tests/build_studio_model.py --out "$RUNNER_TEMP/RemoteGuardQuickTest.rbxmx"
+
+  publish-v1:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: regression
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Publish stable release once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -F 'VERSION = "1.0.0"' RemoteGuardRoblox.lua
+          grep -F 'VERSION="1.0.0"' RemoteGuardServer.lua
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            exit 0
+          fi
+          python3 tests/build_studio_model.py --out "$RUNNER_TEMP/RemoteGuardQuickTest.rbxmx"
+          gh release create v1.0.0 RemoteGuardRoblox.lua RemoteGuardServer.lua "$RUNNER_TEMP/RemoteGuardQuickTest.rbxmx" --target "$GITHUB_SHA" --title "RemoteGuard 1.0.0" --notes-file docs/RELEASE_1.0.0.md

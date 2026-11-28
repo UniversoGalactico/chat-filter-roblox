@@ -1,6 +1,6 @@
 # RemoteGuardRoblox
 
-Server-side request admission for Roblox. **1.0.0-rc.2** — candidate, MIT, no external dependencies. Check quotas, payload shape and permissions before executing game logic. Optional adapter handles real Player identity and request lifetime.
+Server-side request admission for Roblox. **1.0.0** — stable release, MIT, no external dependencies. Check quotas, payload shape and permissions before executing game logic. Optional adapter handles real Player identity and request lifetime.
 
 ## Start here
 
@@ -48,7 +48,7 @@ For a yielding handler, set `MaxInFlight` on its action; the adapter reserves a 
 
 ## Studio test
 
-Import the QuickTest model produced by `python3 tests/build_studio_model.py --out RemoteGuardQuickTest.rbxmx` into ServerScriptService and use **Play (F5)** in a blank Studio place. It runs engine datatype checks and actual client-server calls. No API access or publishing needed. See [test instructions](tests/STUDIO.md). This candidate has not yet been validated in Studio.
+Import the QuickTest model produced by `python3 tests/build_studio_model.py --out RemoteGuardQuickTest.rbxmx` into ServerScriptService and use **Play (F5)** in a blank Studio place. It runs engine datatype checks and actual client-server calls. No API access or publishing needed. See [test instructions](tests/STUDIO.md). The maintainer reported 24/24 passing in Studio on rc.2. The stable runtime differs only in version strings. [Download release](https://github.com/UniversoGalactico/chat-filter-roblox/releases/tag/v1.0.0).
 
 ## Important limits
 

@@ -3,7 +3,7 @@
 local RemoteGuard: any = require(script.Parent.RemoteGuard)
 local Players: any = game:GetService("Players")
 local RunService: any = game:GetService("RunService")
-local RemoteGuardServer = {VERSION="1.0.0-rc.2"}
+local RemoteGuardServer = {VERSION="1.0.0"}
 type Pending = {Thread: thread, Player: Player}
 local MAX_COUNT=2^53-1
 
